@@ -2,6 +2,9 @@ import random
 from random import sample
 from random import choice
 from collections import Counter
+from icecream import ic
+ic.enable()
+
 
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
@@ -36,8 +39,8 @@ def build_players(players_num, roles_in_game):
     for i in range(players_num):
         players.append("玩家" + str(i + 1))
         # 为玩家随机选择配置中的角色
-        # role = choice(roles_in_game)
-        role = roles_in_game[0]
+        role = choice(roles_in_game)
+        # role = roles_in_game[0]
         players_info[players[i]] = [i + 1, role, "存活"]
         roles_in_game.remove(role)
     return players, players_info
@@ -310,19 +313,22 @@ def storyteller(players,
     return players_info
 
 
-def player_index_input(players, string):
-    player = None
-    while not isinstance(player, int) or player < 1 or player > len(players):
+def player_index_input(alive_list, players_info, current_player, string):
+    alive_list = alive_list.copy()
+    current_player_index = players_info[current_player][0]
+    alive_list.remove(current_player_index)
+    player_input = None
+    while not isinstance(player_input, int) or not player_input in alive_list:
         try:
-            player = int(input(string))
-            if player < 1 or player > len(players):
-                print(f"请输入玩家编号(1~{len(players)})。")
+            player_input = int(input(string + str(alive_list)))
+            if player_input < 1 or player_input > len(alive_list):
+                print(f"请输入玩家编号{alive_list}。")
         except ValueError:
-            print(f"请输入玩家编号(1~{len(players)})。")
-    return player
+            print(f"请输入玩家编号{alive_list}。")
+    return player_input
 
 
-def first_night(roles_in_game, players, players_info):
+def first_night(alive_roles_in_game, alive_list, players, players_info):
     player_to_poison = 0
     player_1 = 0
     player_2 = 0
@@ -330,12 +336,12 @@ def first_night(roles_in_game, players, players_info):
     # 从[夜晚唤醒顺序]中获得当前使用技能的角色
     for current_role in Night_Order_List:
         # 仅当角色出现在此局游戏中时才能使用技能
-        if current_role in roles_in_game:
+        if current_role in alive_roles_in_game:
             current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
             info = []
             # 角色使用技能
             if current_role == "投毒者":
-                player_to_poison = player_index_input(players, "你的角色是投毒者，请输入你今晚想投毒的玩家编号：")
+                player_to_poison = player_index_input(alive_list, players_info, current_player, "你的角色是投毒者，请输入你今晚想投毒的玩家编号：")
                 info = poisoner(players_info, player_to_poison)
             if current_role == "洗衣妇":
                 info = washerwoman(current_player, players, players_info)
@@ -353,11 +359,11 @@ def first_night(roles_in_game, players, players_info):
                 players_.remove(current_player)
                 rand_player = choice(players_)
                 players_info[current_player].append(["你认为 " + rand_player + " 是小恶魔。"])
-                player_1 = player_index_input(players, "你的角色是占卜师，请输入你想占卜的第一位玩家编号：")
-                player_2 = player_index_input(players, "请输入你想占卜的第二位玩家编号：")
+                player_1 = player_index_input(alive_list, players_info, current_player, "你的角色是占卜师，请输入你想占卜的第一位玩家编号：")
+                player_2 = player_index_input(alive_list, players_info, current_player, "请输入你想占卜的第二位玩家编号：")
                 info = soothsayer(players_info, player_1, player_2)
             if current_role == "管家":
-                player_to_vote = player_index_input(players, "你的角色是管家，请输入你今晚选择的明天要跟随的投票者的玩家编号："
+                player_to_vote = player_index_input(alive_list, players_info, current_player, "你的角色是管家，请输入你今晚选择的明天要跟随的投票者的玩家编号："
                                                              "（你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，"
                                                              "若该玩家不投票，则你也不能投票。）")
                 info = butler(players_info, player_to_vote)
@@ -368,7 +374,7 @@ def first_night(roles_in_game, players, players_info):
     return players_info, player_to_poison, player_1, player_2, player_to_vote
 
 
-def other_nights(alive_roles_in_game, players, players_info, execute_player):
+def other_nights(alive_roles_in_game, alive_list, players, players_info, execute_player):
     player_to_protect = 0
     player_to_kill = 0
     # 从[夜晚唤醒顺序]中获得当前使用技能的角色
@@ -378,10 +384,10 @@ def other_nights(alive_roles_in_game, players, players_info, execute_player):
             info = []
             current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
             if current_role == "僧侣":
-                player_to_protect = player_index_input(players, "你的角色是僧侣，请输入你今晚想保护的玩家编号：")
+                player_to_protect = player_index_input(alive_list, players_info, current_player, "你的角色是僧侣，请输入你今晚想保护的玩家编号：")
                 info = monk(players_info, player_to_protect)
             if current_role == "小恶魔":
-                player_to_kill = player_index_input(players, "你的角色是小恶魔，请输入你今晚想杀死的玩家编号：")
+                player_to_kill = player_index_input(alive_list, players_info, current_player, "你的角色是小恶魔，请输入你今晚想杀死的玩家编号：")
                 info = imp(players_info, player_to_kill)
             if current_role == "掘墓人":
                 info = grave_digger(players_info, execute_player)
@@ -398,10 +404,10 @@ def check_alive(players_info):
             alive_list.append(v[0])
             alive_roles_in_game.append(v[1])
     print("目前还存活的玩家编号为：", alive_list)
-    return alive_roles_in_game
+    return alive_roles_in_game, alive_list
 
 
-def round():
+def game():
     # 玩家人数
     players_num = 8
 
@@ -417,6 +423,8 @@ def round():
     players, players_info = build_players(players_num, roles_in_game)
     is_first_night = True
     is_night = True
+    print("游戏开始")
+    ic(players_info)
     while not good_guys_win and not bad_guys_win:
         if is_night:
             print("现在是晚上")
@@ -426,15 +434,28 @@ def round():
             player_to_vote = 0
             player_to_protect = 0
             player_to_kill = 0
+            alive_roles_in_game, alive_list = check_alive(players_info)
             if is_first_night:
                 is_first_night = False
                 is_night = False
                 if players_num > 7:
-                    players_info, player_to_poison, player_1, player_2, player_to_vote = first_night(roles_in_game, players, players_info)
+                    ic("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的身份")
+                    bad_guys_in_game = [v[1] for k, v in players_info.items() if v[1] in Bad_guys]
+                    bad_players_in_game = [k for k, v in players_info.items() if v[1] in Bad_guys]
+                    ic(bad_guys_in_game)
+                    ic(bad_players_in_game)
+                    for player in bad_players_in_game:
+                        players_info[player].append(f"本局坏人阵营玩家：{bad_players_in_game}")
+                        if players_info[player][1] == "小恶魔":
+                            role_not_in_game = [r for r in roles_all if r not in roles_in_game]
+                            rand_3_role_not_in_game = sample(role_not_in_game, 3)
+                            players_info[player].append(f"本局三个不在场的身份：{rand_3_role_not_in_game}")
+
+                    ic(players_info)
+                    players_info, player_to_poison, player_1, player_2, player_to_vote = first_night(alive_roles_in_game, alive_list, players, players_info)
             else:
                 is_night = False
-                alive_roles_in_game = check_alive(players_info)
-                players_info, player_to_protect, player_to_kill = other_nights(alive_roles_in_game, players, players_info, execute_player)
+                players_info, player_to_protect, player_to_kill = other_nights(alive_roles_in_game, alive_list, players, players_info, execute_player)
 
         else:
             is_night = True
@@ -447,10 +468,11 @@ def round():
                                        player_to_protect=player_to_protect,
                                        player_to_kill=player_to_kill)
             print("现在是白天")
-            alive_roles_in_game = check_alive(players_info)
+            alive_roles_in_game, alive_list = check_alive(players_info)
             player_vote_list = []
             for current_role in roles_in_game:
-                player_vote_list.append(player_index_input(players, f"你是{current_role}, "
+                current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
+                player_vote_list.append(player_index_input(alive_list, players_info, current_player, f"你是{current_role}, "
                                                                     f"请输入玩家编号以投票处决一位玩家："))
             vote_counts = Counter(player_vote_list)
             most_common_vote = vote_counts.most_common(1)
@@ -460,4 +482,4 @@ def round():
                                        execute_player=execute_player)
 
 
-round()
+game()
