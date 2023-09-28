@@ -3,8 +3,8 @@ from random import sample
 from random import choice
 from collections import Counter
 from icecream import ic
-ic.enable()
 
+ic.enable()
 
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
@@ -34,14 +34,15 @@ roles_all = Villagers + Outlanders + Minions + Demon + Traveller
 def build_players(players_num, roles_in_game):
     roles_in_game = roles_in_game.copy()
 
-    players_info = {}  # 玩家信息字典: key:玩家代号, value:[0]玩家编号，[1]玩家自身身份，[2]玩家存活信息，[3~n]玩家使用技能得到的信息
+    players_info = {}  # 玩家信息字典: key:玩家代号, value:[0]玩家编号，[1]玩家自身身份，[2]玩家存活信息，
+    # [3]玩家状态信息：健康，中毒，醉酒，[4~n]玩家使用技能得到的信息
     players = []  # 玩家代号
     for i in range(players_num):
         players.append("玩家" + str(i + 1))
         # 为玩家随机选择配置中的角色
         role = choice(roles_in_game)
         # role = roles_in_game[0]
-        players_info[players[i]] = [i + 1, role, "存活"]
+        players_info[players[i]] = [i + 1, role, "存活", "健康"]
         roles_in_game.remove(role)
     return players, players_info
 
@@ -70,11 +71,13 @@ def washerwoman(player, players, players_info):
     # 再随机选择一个角色
     players.remove(villager_player)
     rand_player = choice(players)
+    ic_string = f"洗衣妇 知道了 {villager} 在 {rand_player} 和 {villager_player} 中。"
+    ic(ic_string)
     # 打乱身份顺序
     if random.randint(0, 1):
-        return [villager, rand_player, villager_player]
+        return [f"{villager} 在 {rand_player} 和 {villager_player} 中。"]
     else:
-        return [villager, villager_player, rand_player]
+        return [f"{villager} 在 {villager_player} 和 {rand_player} 中。"]
 
 
 def librarian(player, players, players_info):
@@ -94,6 +97,7 @@ def librarian(player, players, players_info):
             Outlanders_in_game.append(i[1])
     # 如果本局游戏没有外乡人
     if not Outlanders_in_game:
+        ic(f"图书管理员 知道了本局游戏没有外乡人。")
         return ["本局游戏没有外乡人。"]
     # 如果本局游戏有外乡人，则随机选择一个外乡人身份牌
     else:
@@ -102,11 +106,13 @@ def librarian(player, players, players_info):
         # 再随机选择一个角色
         players.remove(outlander_player)
         rand_player = choice(players)
+        ic_string = f"图书管理员 知道了 {outlander} 在 {rand_player} 和 {outlander_player} 中。"
+        ic(ic_string)
         # 打乱身份顺序
         if random.randint(0, 1):
-            return [f"{outlander} 在 {rand_player} 和 {outlander_player} 中"]
+            return [f"{outlander} 在 {rand_player} 和 {outlander_player} 中。"]
         else:
-            return [f"{outlander} 在 {outlander_player} 和 {rand_player} 中"]
+            return [f"{outlander} 在 {outlander_player} 和 {rand_player} 中。"]
 
 
 def investigator(player, players, players_info):
@@ -129,6 +135,8 @@ def investigator(player, players, players_info):
     # 再随机选择一个角色
     players.remove(minions_player)
     rand_player = choice(players)
+    ic_string = f"调查员 知道了 {minions} 在 {minions_player} 和 {rand_player} 中。"
+    ic(ic_string)
     # 打乱身份顺序
     if random.randint(0, 1):
         return [f"{minions} 在 {minions_player} 和 {rand_player} 中。"]
@@ -160,6 +168,8 @@ def cook(players, players_info):
             result += 1
         if num + 1 in bad_guys_player_index:
             result += 1
+    ic_string = f"厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。"
+    ic(ic_string)
     return ["有 " + str(result) + " 对邪恶阵营玩家座位相邻。"]
 
 
@@ -173,7 +183,7 @@ def empathiser(role, players_info):
     # 找出目前存活的邪恶阵营角色和对应玩家
     alive_num = 0  # 存活玩家人数
     for i in players_info.values():
-        if i[2] == "存活":
+        if i[2] != "死亡":
             alive_num += 1
             if i[1] in Bad_guys:
                 Bad_guys_in_game.append(i[1])
@@ -194,6 +204,8 @@ def empathiser(role, players_info):
         result += 1
     if self_index - 1 in bad_guys_player_index:
         result += 1
+    ic_string = f"共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
+    ic(ic_string)
     return [f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"]
 
 
@@ -211,6 +223,9 @@ def soothsayer(players_info, Soothsayer_player_1, Soothsayer_player_2):
         result = " 中存在恶魔身份"
     else:
         result = " 中不存在恶魔身份"
+
+    ic_string = f"占卜师 知道了 {player_1} 和 {player_2}" + result
+    ic(ic_string)
     return [player_1 + " 和 " + player_2 + result]
 
 
@@ -221,6 +236,8 @@ def grave_digger(players_info, execute_player):
     返回：[因处决而死亡的玩家身份]
     """
     role = [v[1] for k, v in players_info.items() if v[0] == execute_player][0]
+    ic_string = f"掘墓人 知道了当天被处决的玩家身份是 {role}"
+    ic(ic_string)
     return ["白天被处决的是 " + role]
 
 
@@ -230,8 +247,16 @@ def monk(players_info, player_to_protect):
     僧侣每晚（除第一晚之外）可选择一名除自己之外的玩家，该玩家在当晚不会被恶魔杀死。
     返回：[选择的一名除自己之外的玩家]
     """
+    monk_status = [v[3] for k, v in players_info.items() if v[1] == "僧侣"][0]
     player = [k for k, v in players_info.items() if v[0] == player_to_protect][0]
-    return ["你今晚保护的是" + player]
+    if monk_status == "健康":
+        ic_string = f"僧侣 选择保护 {player}"
+        ic(ic_string)
+    else:
+        player_to_protect = None
+        ic_string = f"僧侣 选择保护 {player}，但是由于 僧侣 {monk_status}，因此技能未生效"
+        ic(ic_string)
+    return ["你今晚保护的是" + player], player_to_protect
 
 
 def butler(players_info, player_to_vote):
@@ -241,6 +266,8 @@ def butler(players_info, player_to_vote):
     返回：[选择的一名玩家]
     """
     player = [k for k, v in players_info.items() if v[0] == player_to_vote][0]
+    ic_string = f"管家 选择明天跟随 {player} 投票"
+    ic(ic_string)
     return ["你今晚选择的明天要跟随的投票者是 " + player]
 
 
@@ -251,6 +278,9 @@ def poisoner(players_info, player_to_poison):
     返回：[选择要投毒的一名玩家]
     """
     player = [k for k, v in players_info.items() if v[0] == player_to_poison][0]
+    ic_string = f"投毒者 选择投毒 {player}"
+    ic(ic_string)
+    players_info[player][3] = "中毒"
     return ["你今晚要投毒的是 " + player]
 
 
@@ -264,6 +294,8 @@ def spy(players_info):
     info = []
     for v in players_info.values():
         info.append([v[0], v[1], v[2]])
+    ic_string = f"间谍 查看了魔法书，知道了每位玩家的实际身份与状态"
+    ic(ic_string)
     return info
 
 
@@ -274,6 +306,8 @@ def imp(players_info, player_to_kill):
     返回：[选择要杀死的一名玩家]
     """
     player = [k for k, v in players_info.items() if v[0] == player_to_kill][0]
+    ic_string = f"小恶魔 选择杀死 {player}"
+    ic(ic_string)
     return ["你今晚要杀死的是 " + player]
 
 
@@ -341,7 +375,8 @@ def first_night(alive_roles_in_game, alive_list, players, players_info):
             info = []
             # 角色使用技能
             if current_role == "投毒者":
-                player_to_poison = player_index_input(alive_list, players_info, current_player, "你的角色是投毒者，请输入你今晚想投毒的玩家编号：")
+                player_to_poison = player_index_input(alive_list, players_info, current_player,
+                                                      "你的角色是投毒者，请输入你今晚想投毒的玩家编号：")
                 info = poisoner(players_info, player_to_poison)
             if current_role == "洗衣妇":
                 info = washerwoman(current_player, players, players_info)
@@ -359,13 +394,17 @@ def first_night(alive_roles_in_game, alive_list, players, players_info):
                 players_.remove(current_player)
                 rand_player = choice(players_)
                 players_info[current_player].append(["你认为 " + rand_player + " 是小恶魔。"])
-                player_1 = player_index_input(alive_list, players_info, current_player, "你的角色是占卜师，请输入你想占卜的第一位玩家编号：")
-                player_2 = player_index_input(alive_list, players_info, current_player, "请输入你想占卜的第二位玩家编号：")
+                ic(f"占卜师 认为 {rand_player} 是小恶魔。")
+                player_1 = player_index_input(alive_list, players_info, current_player,
+                                              "你的角色是占卜师，请输入你想占卜的第一位玩家编号：")
+                player_2 = player_index_input(alive_list, players_info, current_player,
+                                              "请输入你想占卜的第二位玩家编号：")
                 info = soothsayer(players_info, player_1, player_2)
             if current_role == "管家":
-                player_to_vote = player_index_input(alive_list, players_info, current_player, "你的角色是管家，请输入你今晚选择的明天要跟随的投票者的玩家编号："
-                                                             "（你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，"
-                                                             "若该玩家不投票，则你也不能投票。）")
+                player_to_vote = player_index_input(alive_list, players_info, current_player,
+                                                    "你的角色是管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
+                                                    "（你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，"
+                                                    "若该玩家不投票，则你也不能投票。）")
                 info = butler(players_info, player_to_vote)
             if current_role == "间谍":
                 info = spy(players_info)
@@ -384,10 +423,12 @@ def other_nights(alive_roles_in_game, alive_list, players, players_info, execute
             info = []
             current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
             if current_role == "僧侣":
-                player_to_protect = player_index_input(alive_list, players_info, current_player, "你的角色是僧侣，请输入你今晚想保护的玩家编号：")
-                info = monk(players_info, player_to_protect)
+                player_to_protect = player_index_input(alive_list, players_info, current_player,
+                                                       "你的角色是僧侣，请输入你今晚想保护的玩家编号：")
+                info, player_to_protect = monk(players_info, player_to_protect)
             if current_role == "小恶魔":
-                player_to_kill = player_index_input(alive_list, players_info, current_player, "你的角色是小恶魔，请输入你今晚想杀死的玩家编号：")
+                player_to_kill = player_index_input(alive_list, players_info, current_player,
+                                                    "你的角色是小恶魔，请输入你今晚想杀死的玩家编号：")
                 info = imp(players_info, player_to_kill)
             if current_role == "掘墓人":
                 info = grave_digger(players_info, execute_player)
@@ -400,11 +441,48 @@ def check_alive(players_info):
     alive_list = []
     alive_roles_in_game = []
     for v in players_info.values():
-        if v[2] == "存活":
+        if v[2] != "死亡":
             alive_list.append(v[0])
             alive_roles_in_game.append(v[1])
     print("目前还存活的玩家编号为：", alive_list)
     return alive_roles_in_game, alive_list
+
+
+def players_num_above_7(players_info, roles_in_game):
+    print("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的身份")
+    bad_guys_in_game = [v[1] for k, v in players_info.items() if v[1] in Bad_guys]
+    bad_players_in_game = [k for k, v in players_info.items() if v[1] in Bad_guys]
+    ic(bad_guys_in_game)
+    ic(bad_players_in_game)
+    for player in bad_players_in_game:
+        players_info[player].append(f"本局坏人阵营玩家：{bad_players_in_game}")
+        if players_info[player][1] == "小恶魔":
+            role_not_in_game = [r for r in roles_all if r not in roles_in_game]
+            rand_3_role_not_in_game = sample(role_not_in_game, 3)
+            players_info[player].append(f"本局三个不在场的身份：{rand_3_role_not_in_game}")
+
+    ic(players_info)
+    return players_info
+
+
+def vote_to_execute(alive_roles_in_game, alive_list, players_info):
+    print("投票开始")
+    alive_list = alive_list.copy()
+    player_vote_list = []
+    for current_role in alive_roles_in_game:
+        current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
+        player_to_execute = player_index_input(alive_list, players_info, current_player, f"你是{current_role}, "
+                                                                                         f"请输入玩家编号以投票处决一位玩家：")
+        player_vote_list.append(player_to_execute)
+        ic_string = f"{current_role} 选择投票给 玩家{player_to_execute}"
+        ic(ic_string)
+    vote_counts = Counter(player_vote_list)
+    most_common_vote = vote_counts.most_common(1)
+    execute_player = most_common_vote[0][0]
+    ic_string = f"玩家{execute_player} 票数最多，被处决"
+    ic(ic_string)
+    print("投票结束")
+    return execute_player
 
 
 def game():
@@ -439,24 +517,19 @@ def game():
                 is_first_night = False
                 is_night = False
                 if players_num > 7:
-                    ic("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的身份")
-                    bad_guys_in_game = [v[1] for k, v in players_info.items() if v[1] in Bad_guys]
-                    bad_players_in_game = [k for k, v in players_info.items() if v[1] in Bad_guys]
-                    ic(bad_guys_in_game)
-                    ic(bad_players_in_game)
-                    for player in bad_players_in_game:
-                        players_info[player].append(f"本局坏人阵营玩家：{bad_players_in_game}")
-                        if players_info[player][1] == "小恶魔":
-                            role_not_in_game = [r for r in roles_all if r not in roles_in_game]
-                            rand_3_role_not_in_game = sample(role_not_in_game, 3)
-                            players_info[player].append(f"本局三个不在场的身份：{rand_3_role_not_in_game}")
-
-                    ic(players_info)
-                    players_info, player_to_poison, player_1, player_2, player_to_vote = first_night(alive_roles_in_game, alive_list, players, players_info)
+                    players_info = players_num_above_7(players_info, roles_in_game)
+                    players_info, player_to_poison, player_1, player_2, player_to_vote = first_night(
+                        alive_roles_in_game, alive_list, players, players_info)
+                killed_player_last_night = None
+                ic(players_info)
             else:
                 is_night = False
-                players_info, player_to_protect, player_to_kill = other_nights(alive_roles_in_game, alive_list, players, players_info, execute_player)
-
+                players_info, player_to_protect, player_to_kill = other_nights(alive_roles_in_game, alive_list, players,
+                                                                               players_info, execute_player)
+                if player_to_protect == player_to_kill:
+                    killed_player_last_night = None
+                else:
+                    killed_player_last_night = player_to_kill
         else:
             is_night = True
             players_info = storyteller(players=players,
@@ -468,18 +541,16 @@ def game():
                                        player_to_protect=player_to_protect,
                                        player_to_kill=player_to_kill)
             print("现在是白天")
+            if killed_player_last_night:
+                print("昨晚死亡的玩家是：玩家 ", killed_player_last_night)
+            else:
+                print("昨晚没有玩家死亡")
             alive_roles_in_game, alive_list = check_alive(players_info)
-            player_vote_list = []
-            for current_role in roles_in_game:
-                current_player = [k for k, v in players_info.items() if v[1] == current_role][0]
-                player_vote_list.append(player_index_input(alive_list, players_info, current_player, f"你是{current_role}, "
-                                                                    f"请输入玩家编号以投票处决一位玩家："))
-            vote_counts = Counter(player_vote_list)
-            most_common_vote = vote_counts.most_common(1)
-            execute_player = most_common_vote[0][0]
+            execute_player = vote_to_execute(alive_roles_in_game, alive_list, players_info)
             players_info = storyteller(players=players,
                                        players_info=players_info,
                                        execute_player=execute_player)
+            ic(players_info)
 
 
 game()
