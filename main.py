@@ -281,6 +281,8 @@ def poisoner(players_info, player_to_poison):
     ic_string = f"投毒者 选择投毒 {player}"
     ic(ic_string)
     players_info[player][3] = "中毒"
+    ic_string = f"{player} {players_info[player][1]} 状态已变更为 {players_info[player][3]}"
+    ic(ic_string)
     return ["你今晚要投毒的是 " + player]
 
 
