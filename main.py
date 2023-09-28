@@ -3,6 +3,7 @@ from random import sample
 from random import choice
 from collections import Counter
 from icecream import ic
+from copy import deepcopy
 
 ic.enable()
 
@@ -61,10 +62,10 @@ def washerwoman(player, players, players_info):
     # 先将使用技能的角色自身排除在列表之外
     players.remove(player)
 
-    # 找出本局所有村民并在其中随机选择一个
+    # 找出本局所有村民(除洗衣妇自身)并在其中随机选择一个
     Villagers_in_game = []
     for i in players_info.values():
-        if i[1] in Villagers:
+        if i[1] in Villagers and i[1] != "洗衣妇":
             Villagers_in_game.append(i[1])
     villager = choice(Villagers_in_game)
     villager_player = [k for k, v in players_info.items() if v[1] == villager][0]
@@ -270,6 +271,15 @@ def butler(players_info, player_to_vote):
     ic(ic_string)
     return ["你今晚选择的明天要跟随的投票者是 " + player]
 
+def drunkard(roles_in_game, players_info, fake_players_info):
+    # 发到酒鬼身份牌的玩家，会被告知另一个村民身份，并且实际上不知道他的真实身份是酒鬼。该技能是一种永久负面buff。
+    drunkard_player = [k for k, v in players_info.items() if v[1] == "酒鬼"][0]
+    role_villager = [r for r in roles_in_game if r in Villagers]  # 找出目前在场的村民角色
+    role_villager_rest = [r for r in Villagers if r not in role_villager]  # 找出不在场的村民角色
+    fake_role = choice(role_villager_rest)
+    fake_players_info[drunkard_player][1] = fake_role
+    players_info[drunkard_player][3] = "醉酒"
+    return players_info, fake_players_info
 
 def poisoner(players_info, player_to_poison):
     """
@@ -347,6 +357,22 @@ def storyteller(players,
             players_info[player][2] = "死亡"
 
     return players_info
+
+
+def baron(roles_in_game):
+    """
+    男爵
+    可以新增两名外来者，减少两名村民。该技能为游戏开始之前，属于被动技能，只能发动一次。
+    """
+    role_villager = [r for r in roles_in_game if r in Villagers]  # 找出目前在场的村民角色
+    role_vill_new = sample(role_villager, len(role_villager) - 2)  # 随机减少两名村民角色
+    role_outlander = [r for r in roles_in_game if r in Outlanders]  # 找出目前在场的外乡人角色
+    role_outlander_rest = [r for r in Outlanders if r not in role_outlander]  # 找出不在场的外乡人角色
+    role_outlander_add = sample(role_outlander_rest, 2)  # 从不在场的外乡人角色中随机添加两名
+    role_outlander_new = role_outlander + role_outlander_add
+    roles_in_game_rest = [r for r in roles_in_game if r not in role_villager and r not in role_outlander]
+    roles_in_game = roles_in_game_rest + role_vill_new + role_outlander_new
+    return roles_in_game
 
 
 def player_index_input(alive_list, players_info, current_player, string):
@@ -451,7 +477,7 @@ def check_alive(players_info):
 
 
 def players_num_above_7(players_info, roles_in_game):
-    print("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的身份")
+    print("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份")
     bad_guys_in_game = [v[1] for k, v in players_info.items() if v[1] in Bad_guys]
     bad_players_in_game = [k for k, v in players_info.items() if v[1] in Bad_guys]
     ic(bad_guys_in_game)
@@ -459,8 +485,8 @@ def players_num_above_7(players_info, roles_in_game):
     for player in bad_players_in_game:
         players_info[player].append(f"本局坏人阵营玩家：{bad_players_in_game}")
         if players_info[player][1] == "小恶魔":
-            role_not_in_game = [r for r in roles_all if r not in roles_in_game]
-            rand_3_role_not_in_game = sample(role_not_in_game, 3)
+            good_guys_not_in_game = [r for r in Good_guys if r not in roles_in_game]
+            rand_3_role_not_in_game = sample(good_guys_not_in_game, 3)
             players_info[player].append(f"本局三个不在场的身份：{rand_3_role_not_in_game}")
 
     ic(players_info)
@@ -487,6 +513,12 @@ def vote_to_execute(alive_roles_in_game, alive_list, players_info):
     return execute_player
 
 
+def clear_all_status(players_info):
+    for k, v in players_info.items():
+        players_info[k][3] = "健康"
+    return players_info
+
+
 def game():
     # 玩家人数
     players_num = 8
@@ -497,14 +529,22 @@ def game():
     if players_num == 8:
         # 村民5人，外乡人1，爪牙1，恶魔1
         roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + sample(Minions, 1) + sample(Demon, 1)
+        roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + ["男爵"] + sample(Demon, 1)
         alive_roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + sample(Minions, 1) + sample(Demon, 1)
-    roles_in_game = ["小恶魔", "投毒者", "调查员", "间谍", "共情者", "占卜师", "管家", "僧侣"]
-
+    # roles_in_game = ["小恶魔", "投毒者", "调查员", "间谍", "共情者", "男爵", "管家", "僧侣"]
+    if "男爵" in roles_in_game:
+        roles_in_game = baron(roles_in_game)
     players, players_info = build_players(players_num, roles_in_game)
+    fake_players_info = deepcopy(players_info)  # 假玩家信息字典
+    for k, v in fake_players_info.items():
+        fake_players_info[k][3] = None
+    if "酒鬼" in roles_in_game:
+        players_info, fake_players_info = drunkard(roles_in_game, players_info, fake_players_info)
     is_first_night = True
     is_night = True
     print("游戏开始")
     ic(players_info)
+    ic(fake_players_info)
     while not good_guys_win and not bad_guys_win:
         if is_night:
             print("现在是晚上")
@@ -526,6 +566,7 @@ def game():
                 ic(players_info)
             else:
                 is_night = False
+                players_info = clear_all_status(players_info)
                 players_info, player_to_protect, player_to_kill = other_nights(alive_roles_in_game, alive_list, players,
                                                                                players_info, execute_player)
                 if player_to_protect == player_to_kill:
