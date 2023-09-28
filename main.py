@@ -62,23 +62,30 @@ def washerwoman(player, players, players_info):
     # 先将使用技能的角色自身排除在列表之外
     players.remove(player)
 
-    # 找出本局所有村民(除洗衣妇自身)并在其中随机选择一个
-    Villagers_in_game = []
-    for i in players_info.values():
-        if i[1] in Villagers and i[1] != "洗衣妇":
-            Villagers_in_game.append(i[1])
-    villager = choice(Villagers_in_game)
-    villager_player = [k for k, v in players_info.items() if v[1] == villager][0]
-    # 再随机选择一个角色
-    players.remove(villager_player)
-    rand_player = choice(players)
-    ic_string = f"洗衣妇 知道了 {villager} 在 {rand_player} 和 {villager_player} 中。"
-    ic(ic_string)
-    # 打乱身份顺序
-    if random.randint(0, 1):
-        return [f"{villager} 在 {rand_player} 和 {villager_player} 中。"]
+    if players_info[player][3] == "中毒":
+        # 在所有村民(除洗衣妇自身)中随机选择一个身份
+        Villagers_in_game = [i for i in Villagers if i != "洗衣妇"]
+        villager = choice(Villagers_in_game)
+        # 随机选择两个玩家
+        rand_players = sample(players, 2)
+        ic_string = f"洗衣妇 知道了 {villager} 在 {rand_players[1]} 和 {rand_players[2]} 中。但是他中毒了，因此得到是错误信息。"
+        ic(ic_string)
+        return [f"{villager} 在 {rand_players[1]} 和 {rand_players[2]} 中。"]
     else:
-        return [f"{villager} 在 {villager_player} 和 {rand_player} 中。"]
+        # 找出本局所有村民(除洗衣妇自身)并在其中随机选择一个身份，找到对应玩家
+        Villagers_in_game = [i[1] for i in players_info.values() if i[1] in Villagers and i[1] != "洗衣妇"]
+        villager = choice(Villagers_in_game)
+        villager_player = [k for k, v in players_info.items() if v[1] == villager][0]
+        # 再随机选择一个玩家
+        players.remove(villager_player)
+        rand_player = choice(players)
+        ic_string = f"洗衣妇 知道了 {villager} 在 {rand_player} 和 {villager_player} 中。"
+        ic(ic_string)
+        # 打乱身份顺序
+        if random.randint(0, 1):
+            return [f"{villager} 在 {rand_player} 和 {villager_player} 中。"]
+        else:
+            return [f"{villager} 在 {villager_player} 和 {rand_player} 中。"]
 
 
 def librarian(player, players, players_info):
@@ -91,29 +98,38 @@ def librarian(player, players, players_info):
     # 先将使用技能的角色自身排除在列表之外
     players.remove(player)
 
-    Outlanders_in_game = []
-    # 找出本局所有外乡人
-    for i in players_info.values():
-        if i[1] in Outlanders:
-            Outlanders_in_game.append(i[1])
-    # 如果本局游戏没有外乡人
-    if not Outlanders_in_game:
-        ic(f"图书管理员 知道了本局游戏没有外乡人。")
-        return ["本局游戏没有外乡人。"]
-    # 如果本局游戏有外乡人，则随机选择一个外乡人身份牌
-    else:
-        outlander = choice(Outlanders_in_game)
-        outlander_player = [k for k, v in players_info.items() if v[1] == outlander][0]
-        # 再随机选择一个角色
-        players.remove(outlander_player)
-        rand_player = choice(players)
-        ic_string = f"图书管理员 知道了 {outlander} 在 {rand_player} 和 {outlander_player} 中。"
+    if players_info[player][3] == "中毒":
+        # 在所有外乡人中随机选择一个身份
+        outlander = choice(Outlanders)
+        # 随机选择两个玩家
+        rand_players = sample(players, 2)
+        ic_string = f"图书管理员 知道了 {outlander} 在 {rand_players[1]} 和 {rand_players[2]} 中。但是他中毒了，因此得到是错误信息。"
         ic(ic_string)
-        # 打乱身份顺序
-        if random.randint(0, 1):
-            return [f"{outlander} 在 {rand_player} 和 {outlander_player} 中。"]
+        return [f"{outlander} 在 {rand_players[1]} 和 {rand_players[2]} 中。"]
+    else:
+        # 找出本局所有外乡人
+        Outlanders_in_game = []
+        for i in players_info.values():
+            if i[1] in Outlanders:
+                Outlanders_in_game.append(i[1])
+        # 如果本局游戏没有外乡人
+        if not Outlanders_in_game:
+            ic(f"图书管理员 知道了本局游戏没有外乡人。")
+            return ["本局游戏没有外乡人。"]
+        # 如果本局游戏有外乡人，则随机选择一个外乡人身份牌
         else:
-            return [f"{outlander} 在 {outlander_player} 和 {rand_player} 中。"]
+            outlander = choice(Outlanders_in_game)
+            outlander_player = [k for k, v in players_info.items() if v[1] == outlander][0]
+            # 再随机选择一个角色
+            players.remove(outlander_player)
+            rand_player = choice(players)
+            ic_string = f"图书管理员 知道了 {outlander} 在 {rand_player} 和 {outlander_player} 中。"
+            ic(ic_string)
+            # 打乱身份顺序
+            if random.randint(0, 1):
+                return [f"{outlander} 在 {rand_player} 和 {outlander_player} 中。"]
+            else:
+                return [f"{outlander} 在 {outlander_player} 和 {rand_player} 中。"]
 
 
 def investigator(player, players, players_info):
@@ -126,23 +142,32 @@ def investigator(player, players, players_info):
     # 先将使用技能的角色自身排除在列表之外
     players.remove(player)
 
-    Minions_in_game = []
-    # 找出本局所有爪牙并在其中随机选择一个
-    for i in players_info.values():
-        if i[1] in Minions:
-            Minions_in_game.append(i[1])
-    minions = choice(Minions_in_game)
-    minions_player = [k for k, v in players_info.items() if v[1] == minions][0]
-    # 再随机选择一个角色
-    players.remove(minions_player)
-    rand_player = choice(players)
-    ic_string = f"调查员 知道了 {minions} 在 {minions_player} 和 {rand_player} 中。"
-    ic(ic_string)
-    # 打乱身份顺序
-    if random.randint(0, 1):
-        return [f"{minions} 在 {minions_player} 和 {rand_player} 中。"]
+    if players_info[player][3] == "中毒":
+        # 在所有爪牙中随机选择一个身份
+        minions = choice(Minions)
+        # 随机选择两个玩家
+        rand_players = sample(players, 2)
+        ic_string = f"调查员 知道了 {minions} 在 {rand_players[1]} 和 {rand_players[2]} 中。但是他中毒了，因此得到是错误信息。"
+        ic(ic_string)
+        return [f"{minions} 在 {rand_players[1]} 和 {rand_players[2]} 中。"]
     else:
-        return [f"{minions} 在 {rand_player} 和 {minions_player} 中。"]
+        # 找出本局所有爪牙并在其中随机选择一个身份
+        Minions_in_game = []
+        for i in players_info.values():
+            if i[1] in Minions:
+                Minions_in_game.append(i[1])
+        minions = choice(Minions_in_game)
+        minions_player = [k for k, v in players_info.items() if v[1] == minions][0]
+        # 再随机选择一个角色
+        players.remove(minions_player)
+        rand_player = choice(players)
+        ic_string = f"调查员 知道了 {minions} 在 {minions_player} 和 {rand_player} 中。"
+        ic(ic_string)
+        # 打乱身份顺序
+        if random.randint(0, 1):
+            return [f"{minions} 在 {minions_player} 和 {rand_player} 中。"]
+        else:
+            return [f"{minions} 在 {rand_player} 和 {minions_player} 中。"]
 
 
 def cook(players, players_info):
@@ -152,6 +177,8 @@ def cook(players, players_info):
     返回：[有{x}对邪恶阵营玩家座位相邻。]
     """
     Bad_guys_in_game = []
+    player = [k for k,v in players_info.items() if v[1] == "厨师"][0]
+
     # 找出本局所有邪恶阵营角色和对应玩家
     for i in players_info.values():
         if i[1] in Bad_guys:
@@ -169,9 +196,18 @@ def cook(players, players_info):
             result += 1
         if num + 1 in bad_guys_player_index:
             result += 1
-    ic_string = f"厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。"
-    ic(ic_string)
-    return ["有 " + str(result) + " 对邪恶阵营玩家座位相邻。"]
+
+    if players_info[player][3] == "中毒":
+        result_ = random.randint(0, 3)
+        while result_ == result:
+            result_ = random.randint(0, 3)
+        ic_string = f"厨师 知道了有 {str(result_)} 对邪恶阵营玩家座位相邻。但是他中毒了，因此得到是错误信息。"
+        ic(ic_string)
+        return ["有 " + str(result_) + " 对邪恶阵营玩家座位相邻。"]
+    else:
+        ic_string = f"厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。"
+        ic(ic_string)
+        return ["有 " + str(result) + " 对邪恶阵营玩家座位相邻。"]
 
 
 def empathiser(role, players_info):
@@ -205,9 +241,19 @@ def empathiser(role, players_info):
         result += 1
     if self_index - 1 in bad_guys_player_index:
         result += 1
-    ic_string = f"共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
-    ic(ic_string)
-    return [f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"]
+
+    player = [k for k, v in players_info.items() if v[1] == "共情者"][0]
+    if players_info[player][3] == "中毒":
+        result_ = random.randint(0, 2)
+        while result_ == result:
+            result_ = random.randint(0, 2)
+        ic_string = f"共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。但是他中毒了，因此得到是错误信息。"
+        ic(ic_string)
+        return [f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。"]
+    else:
+        ic_string = f"共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
+        ic(ic_string)
+        return [f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"]
 
 
 def soothsayer(players_info, Soothsayer_player_1, Soothsayer_player_2):
@@ -220,14 +266,24 @@ def soothsayer(players_info, Soothsayer_player_1, Soothsayer_player_2):
     role_2 = [v[1] for k, v in players_info.items() if v[0] == Soothsayer_player_2][0]
     player_1 = [k for k, v in players_info.items() if v[0] == Soothsayer_player_1][0]
     player_2 = [k for k, v in players_info.items() if v[0] == Soothsayer_player_2][0]
-    if role_1 in Demon or role_2 in Demon:
-        result = " 中存在恶魔身份"
-    else:
-        result = " 中不存在恶魔身份"
 
-    ic_string = f"占卜师 知道了 {player_1} 和 {player_2}" + result
-    ic(ic_string)
-    return [player_1 + " 和 " + player_2 + result]
+    player = [k for k, v in players_info.items() if v[1] == "占卜师"][0]
+    if players_info[player][3] == "中毒":
+        if role_1 in Demon or role_2 in Demon:
+            result = " 中不存在恶魔身份。"
+        else:
+            result = " 中存在恶魔身份。"
+        ic_string = f"占卜师 知道了 {player_1} 和 {player_2}" + result + "但是他中毒了，因此得到的是错误信息。"
+        ic(ic_string)
+        return [player_1 + " 和 " + player_2 + result]
+    else:
+        if role_1 in Demon or role_2 in Demon:
+            result = " 中存在恶魔身份。"
+        else:
+            result = " 中不存在恶魔身份。"
+        ic_string = f"占卜师 知道了 {player_1} 和 {player_2}" + result
+        ic(ic_string)
+        return [player_1 + " 和 " + player_2 + result]
 
 
 def grave_digger(players_info, execute_player):
@@ -237,9 +293,17 @@ def grave_digger(players_info, execute_player):
     返回：[因处决而死亡的玩家身份]
     """
     role = [v[1] for k, v in players_info.items() if v[0] == execute_player][0]
-    ic_string = f"掘墓人 知道了当天被处决的玩家身份是 {role}"
-    ic(ic_string)
-    return ["白天被处决的是 " + role]
+    player = [k for k, v in players_info.items() if v[1] == "掘墓人"][0]
+    if players_info[player][3] == "中毒":
+        role_list = [v[1] for k, v in players_info.items() if v[0] != execute_player]
+        rand_role = choice(role_list)
+        ic_string = f"掘墓人 知道了当天被处决的玩家身份是 {rand_role}。但是他中毒了，因此得到的是错误信息。"
+        ic(ic_string)
+        return ["白天被处决的是 " + rand_role]
+    else:
+        ic_string = f"掘墓人 知道了当天被处决的玩家身份是 {role}。"
+        ic(ic_string)
+        return ["白天被处决的是 " + role]
 
 
 def monk(players_info, player_to_protect):
@@ -248,16 +312,16 @@ def monk(players_info, player_to_protect):
     僧侣每晚（除第一晚之外）可选择一名除自己之外的玩家，该玩家在当晚不会被恶魔杀死。
     返回：[选择的一名除自己之外的玩家]
     """
-    monk_status = [v[3] for k, v in players_info.items() if v[1] == "僧侣"][0]
-    player = [k for k, v in players_info.items() if v[0] == player_to_protect][0]
-    if monk_status == "健康":
-        ic_string = f"僧侣 选择保护 {player}"
+    target = [k for k, v in players_info.items() if v[0] == player_to_protect][0]
+    player = [k for k, v in players_info.items() if v[1] == "僧侣"][0]
+    if players_info[player][3] == "中毒":
+        player_to_protect = None
+        ic_string = f"僧侣 选择保护 {target}，但是由于他中毒了，因此技能未生效。"
         ic(ic_string)
     else:
-        player_to_protect = None
-        ic_string = f"僧侣 选择保护 {player}，但是由于 僧侣 {monk_status}，因此技能未生效"
+        ic_string = f"僧侣 选择保护 {target}。"
         ic(ic_string)
-    return ["你今晚保护的是" + player], player_to_protect
+    return ["你今晚保护的是" + target], player_to_protect
 
 
 def butler(players_info, player_to_vote):
@@ -266,10 +330,16 @@ def butler(players_info, player_to_vote):
     每晚选择一名除自己外的玩家，次日白天只有该玩家参与的投票管家才能投票，若该玩家不投票，则管家也不能投票。
     返回：[选择的一名玩家]
     """
-    player = [k for k, v in players_info.items() if v[0] == player_to_vote][0]
-    ic_string = f"管家 选择明天跟随 {player} 投票"
-    ic(ic_string)
-    return ["你今晚选择的明天要跟随的投票者是 " + player], player_to_vote
+    target = [k for k, v in players_info.items() if v[0] == player_to_vote][0]
+    player = [k for k, v in players_info.items() if v[1] == "管家"][0]
+    if players_info[player][3] == "中毒":
+        player_to_vote = 0
+        ic_string = f"管家 选择明天跟随 {target} 投票，但是由于他中毒了，因此技能未生效。"
+        ic(ic_string)
+    else:
+        ic_string = f"管家 选择明天跟随 {target} 投票。"
+        ic(ic_string)
+    return ["你今晚选择的明天要跟随的投票者是 " + target], player_to_vote
 
 
 def drunkard(roles_in_game, players_info, fake_players_info):
@@ -319,10 +389,16 @@ def imp(players_info, player_to_kill):
     小恶魔每晚（除第一晚之外）选择一名玩家将其杀死，若选择杀死自己的话，一名爪牙会成为新的小恶魔。
     返回：[选择要杀死的一名玩家]
     """
-    player = [k for k, v in players_info.items() if v[0] == player_to_kill][0]
-    ic_string = f"小恶魔 选择杀死 {player}"
-    ic(ic_string)
-    return ["你今晚要杀死的是 " + player]
+    target = [k for k, v in players_info.items() if v[0] == player_to_kill][0]
+    player = [k for k, v in players_info.items() if v[1] == "小恶魔"][0]
+    if players_info[player][3] == "中毒":
+        player_to_kill = 0
+        ic_string = f"小恶魔 选择杀死 {target}，但是由于他中毒了，因此技能未生效。"
+        ic(ic_string)
+    else:
+        ic_string = f"小恶魔 选择杀死 {target}。"
+        ic(ic_string)
+    return ["你今晚要杀死的是 " + target], player_to_kill
 
 
 def storyteller(players,
@@ -604,7 +680,6 @@ def game():
     if players_num == 8:
         # 村民5人，外乡人1，爪牙1，恶魔1
         roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + sample(Minions, 1) + sample(Demon, 1)
-        roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + ["男爵"] + sample(Demon, 1)
         alive_roles_in_game = sample(Villagers, 5) + sample(Outlanders, 1) + sample(Minions, 1) + sample(Demon, 1)
     # roles_in_game = ["小恶魔", "投毒者", "调查员", "间谍", "共情者", "男爵", "管家", "僧侣"]
     if "男爵" in roles_in_game:
