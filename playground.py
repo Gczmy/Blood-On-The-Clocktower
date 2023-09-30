@@ -2,7 +2,6 @@ import random
 import botc
 from random import choice
 import botc.core.roles as roles
-import botc.core.daytime as daytime
 
 from botc.core.players import create_players_list
 from botc.core.nights import first_night
@@ -30,18 +29,18 @@ def main(players_num):
             is_night = False
             print("---------------------------------------------------------------------------------------------")
             print("现在是晚上")
-            alive_list = daytime.check_alive(players_list)
+            print("目前还存活的玩家编号为：", [i.player_index for i in players_list if i.is_alive])
             if is_first_night:
                 is_first_night = False
-                first_night(alive_list)
+                first_night(players_list)
             else:
-                other_nights(alive_list, nights_num)
+                other_nights(players_list, nights_num)
         else:
             is_night = True
             print("---------------------------------------------------------------------------------------------")
             print("现在是白天")
-            alive_list = daytime.check_alive(players_list)
-            execute_player = storyteller.vote_to_execute()
+            print("目前还存活的玩家编号为：", [i.player_index for i in players_list if i.is_alive])
+            storyteller.vote_to_execute()
 
 
 main(players_num)
