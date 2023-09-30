@@ -61,7 +61,7 @@ def create_players_list(players_num):
 
     for i in players_list:
         if i.true_role == "男爵":
-            players_list = roles.Baron().skill(players_list)
+            players_list = roles.Baron().passive_skill(players_list)
     for i in range(players_num):
         players_list[i].player_index = i + 1
         players_list[i].players_list = players_list

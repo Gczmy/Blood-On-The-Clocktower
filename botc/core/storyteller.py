@@ -64,8 +64,8 @@ class Storyteller:
                 if master_has_voted is not None:
                     # 主人投了票
                     player_to_execute = self.__vote_input(alive_player_index_list,
-                                                          f"你是{current_player} {current_role}, "
-                                                          f"你昨晚选择的主人选择投票给 玩家{player_to_execute}, "
+                                                          f"你是玩家{current_player} {current_role}, "
+                                                          f"你昨晚选择的主人选择投票给 玩家{player_to_execute.player_index}, "
                                                           f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
                 else:
                     # 主人没投票
@@ -93,13 +93,14 @@ class Storyteller:
                 backend.info.append(f"玩家{current_player} {current_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
         # 唱票
         vote_counts = Counter(player_vote_list)
-        most_common_vote = vote_counts.most_common(1)
-        if not most_common_vote:
-            backend.info.append(f"所有玩家均弃票，没有玩家被处决")
-            print(f"所有玩家均弃票，没有玩家被处决")
+        most_common_vote = vote_counts.most_common(2)
+        if not most_common_vote or most_common_vote[0][1] == most_common_vote[1][1]:
+            backend.info.append(f"玩家平票，没有玩家被处决")
+            print(f"玩家平票，没有玩家被处决")
             execute_player = None
         else:
             execute_player = most_common_vote[0][0]
+            print("most_common_vote = ", most_common_vote)
             print(f"玩家{execute_player} 票数最多，被处决")
             execute_player = [i for i in self.players_list if i.player_index == execute_player][0]
             backend.info.append(f"玩家{execute_player.player_index} {execute_player.true_role} 票数最多，被处决")

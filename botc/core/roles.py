@@ -59,6 +59,14 @@ class Role:
 
         self.__players_list = None
 
+        self.is_villager = False
+        self.is_outlander = False
+        self.is_minion = False
+        self.is_demon = False
+        self.is_traveller = False
+        self.is_good_guy = False
+        self.is_bad_guy = False
+
     @property
     def player_index(self):
         return self.__player_index
@@ -81,7 +89,28 @@ class Role:
     def poisoned(self):
         self.toxic = True
 
-    def passive_skill(self):
+    def passive_skill_before_game(self):
+        pass
+
+    def passive_skill_first_night(self):
+        pass
+
+    def passive_skill_other_nights(self):
+        pass
+
+    def passive_skill_every_night(self):
+        pass
+
+    def skill_before_game(self):
+        pass
+
+    def skill_first_night(self):
+        pass
+
+    def skill_other_nights(self):
+        pass
+
+    def skill_every_night(self):
         pass
 
 
@@ -97,8 +126,10 @@ class Washerwoman(Role):
         self.true_role = "洗衣妇"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_first_night(self):
         player_list = self.players_list
         if self.toxic:
             # 在所有村民(除洗衣妇自身)中随机选择一个身份
@@ -138,8 +169,10 @@ class Librarian(Role):
         self.true_role = "图书管理员"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_first_night(self):
         player_list = self.players_list
         if self.toxic:
             # 在所有外乡人中随机选择一个身份
@@ -183,8 +216,10 @@ class Investigator(Role):
         self.true_role = "调查员"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_first_night(self):
         player_list = self.players_list
 
         if self.toxic:
@@ -223,8 +258,10 @@ class Cook(Role):
         self.true_role = "厨师"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_first_night(self):
         player_list = self.players_list
         # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
         bad_guys_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Bad_guys]
@@ -262,8 +299,10 @@ class Empath(Role):
         self.true_role = "共情者"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_every_night(self):
         player_list = self.players_list
         alive_player_list = [i for i in player_list if i.is_alive]
         # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
@@ -305,15 +344,17 @@ class Soothsayer(Role):
         self.true_role = "占卜师"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def passive_skill(self):
+    def passive_skill_first_night(self):
         # 游戏开始时，会有一名随机玩家（无论身份）被占卜师视为恶魔直到游戏结束，占卜师不知道其真实身份。
         players = [i for i in self.players_list if i.true_role != "占卜师"]
         rand_player = choice(players)
         backend.info.append(f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
         self.info = [f"你认为 玩家{rand_player.player_index} 是小恶魔。"]
 
-    def skill(self):
+    def skill_every_night(self):
         # (注意使用登记身份)
         string = f"你是 玩家{self.player_index} 占卜师，请输入你想占卜的第一位玩家编号："
         player_1 = player_input(self.true_role, self.players_list, string)
@@ -348,8 +389,10 @@ class GraveDigger(Role):
         self.true_role = "掘墓人"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_other_nights(self):
         player_list = self.players_list
         if storyteller.execute_player is not None:
             # (注意使用登记身份)
@@ -377,9 +420,11 @@ class Monk(Role):
         self.true_role = "僧侣"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
-    def skill(self):
-        string = ("f你是{current_player} 僧侣，请输入你今晚想保护的玩家编号：")
+    def skill_other_nights(self):
+        string = (f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号：")
         storyteller.player_to_protect = player_input(self.true_role, self.players_list, string)
         if self.toxic:
             backend.info.append(f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.player_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
@@ -401,8 +446,10 @@ class Butler(Role):
         self.true_role = "管家"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_outlander = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_every_night(self):
         string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
                   f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
         storyteller.player_to_follow = player_input(self.true_role, self.players_list, string)
@@ -426,11 +473,12 @@ class Drunkard(Role):
         self.true_role = "酒鬼"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_outlander = True
+        self.is_good_guy = True
 
-    def skill(self, players_list):
-        self.players_list = players_list
+    def passive_skill_first_night(self):
         # 找出在场的村民角色(这里使用实际身份)
-        villagers_in_game = [i.true_role for i in players_list if i.true_role in Villagers]
+        villagers_in_game = [i.true_role for i in self.players_list if i.is_villager]
         villagers_rest = [i for i in Villagers if i not in villagers_in_game]  # 找出不在场的村民角色
         fake_role = choice(villagers_rest)
         self.role_for_self = fake_role
@@ -447,12 +495,16 @@ class Hermit(Role):
         self.true_role = "隐士"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_outlander = True
+        self.is_good_guy = True
 
-    def skill(self):
+    def skill_every_night(self):
         if self.toxic:
             pass
         else:
-            self.role_for_register = choice(minion_list + demon_list).true_role
+            rand_num = random.randint(0, 1)
+            if rand_num:
+                self.role_for_register = choice(minion_list + demon_list).true_role
 
 
 class Poisoner(Role):
@@ -467,16 +519,19 @@ class Poisoner(Role):
         self.true_role = "投毒者"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_minion = True
+        self.is_bad_guy = True
 
         self.player_to_poison = None
 
-    def passive_skill(self):
+    def passive_skill_before_game(self):
         if len(self.players_list) >= 7:
             # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.true_role in Minions + Demon]
+            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
+            backend.info.append(f"玩家{self.player_index} 投毒者 知道了本局坏人阵营玩家：{bad_players_in_game}")
             self.info = [f"本局坏人阵营玩家：{bad_players_in_game}"]
 
-    def skill(self):
+    def skill_every_night(self):
         string = f"你是 玩家{self.player_index} 投毒者，请输入你今晚想投毒的玩家编号："
         self.player_to_poison = player_input(self.true_role, self.players_list, string)
         backend.info.append(f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
@@ -497,13 +552,24 @@ class Spy(Role):
         self.true_role = "间谍"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_minion = True
+        self.is_bad_guy = True
 
-    def passive_skill(self):
-        # todo 被动技能 间谍可能会被登记为正义阵营的特定身份（村民或外乡人），即使死亡。
+    def passive_skill_before_game(self):
         if len(self.players_list) >= 7:
             # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.true_role in Minions + Demon]
+            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
+            backend.info.append(f"玩家{self.player_index} 间谍 知道了本局坏人阵营玩家：{bad_players_in_game}")
             self.info = [f"本局坏人阵营玩家：{bad_players_in_game}"]
+
+    def passive_skill_every_night(self):
+        # 被动技能 间谍可能会被登记为正义阵营的特定身份（村民或外乡人），即使死亡。
+        if self.toxic:
+            pass
+        else:
+            rand_num = random.randint(0, 1)
+            if rand_num:
+                self.role_for_register = choice(good_guys_list).true_role
 
     def skill(self):
         player_list = self.players_list
@@ -554,14 +620,17 @@ class Baron(Role):
         self.true_role = "男爵"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_minion = True
+        self.is_bad_guy = True
 
-    def passive_skill(self):
+    def passive_skill_before_game(self):
         if len(self.players_list) >= 7:
             # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.true_role in Minions + Demon]
+            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
+            backend.info.append(f"玩家{self.player_index} 男爵 知道了本局坏人阵营玩家：{bad_players_in_game}")
             self.info = [f"本局坏人阵营玩家：{bad_players_in_game}"]
 
-    def skill(self, players_list):
+    def passive_skill(self, players_list):
         villagers_in_game = [i for i in players_list if i in villager_list]  # 找出目前在场的村民角色
         villagers_in_game_new = sample(villagers_in_game, len(villagers_in_game) - 2)  # 随机减少两名村民角色
         outlanders_in_game = [i for i in players_list if i in outlander_list]  # 找出目前在场的外乡人角色
@@ -585,17 +654,19 @@ class Imp(Role):
         self.true_role = "小恶魔"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
+        self.is_demon = True
+        self.is_bad_guy = True
 
-    def passive_skill(self):
+    def passive_skill_before_game(self):
         if len(self.players_list) >= 7:
             # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.true_role in Minions + Demon]
+            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
             good_not_in_game = [i for i in Good_guys if i not in [r.true_role for r in self.players_list]]
             rand_3_good_not_in_game = sample(good_not_in_game, 3)
             backend.info.append(f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
             self.info = [f"本局坏人阵营玩家：{bad_players_in_game}", f"本局三个不在场的好人身份：{rand_3_good_not_in_game}"]
 
-    def skill(self):
+    def skill_other_nights(self):
         string = f"你是 玩家{self.player_index} 小恶魔，请输入你今晚想杀死的玩家编号："
         storyteller.player_to_kill = player_input(self.true_role, self.players_list, string)
         if self.toxic:

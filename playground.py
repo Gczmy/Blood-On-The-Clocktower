@@ -19,13 +19,14 @@ def main(players_num):
     storyteller.players_list = players_list
     if players_num >= 7:
         print("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份")
-
     good_guys_win = False
     bad_guys_win = False
     is_first_night = True
     is_night = True
+    nights_num = 0
     while not good_guys_win and not bad_guys_win:
         if is_night:
+            nights_num += 1
             is_night = False
             print("---------------------------------------------------------------------------------------------")
             print("现在是晚上")
@@ -34,7 +35,7 @@ def main(players_num):
                 is_first_night = False
                 first_night(alive_list)
             else:
-                other_nights(alive_list)
+                other_nights(alive_list, nights_num)
         else:
             is_night = True
             print("---------------------------------------------------------------------------------------------")
