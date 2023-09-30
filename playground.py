@@ -1,42 +1,42 @@
 import random
-from random import sample
-from random import choice
-import botc
-from botc.core.roles import Washerwoman
-from botc.core.roles import Librarian
-from botc.core.roles import Investigator
-from botc.core.roles import Cook
-from botc.core.roles import Empath
 
+from random import choice
+import botc.core.roles as roles
+from botc.core.players import create_players_list
 from botc.core.nights import first_night
 from botc.core.nights import other_nights
-
-role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath()]
-
-players_num = 2
+from botc.core.daytime import check_alive
 
 
-alive_player_list = []
-players_list = sample(role_list, players_num)
-
-for i in range(players_num):
-    players_list[i].player_index = i + 1
-    players_list[i].players_list = players_list
-
-print(players_list[1].players_list)
+players_num = 8
+players_list = create_players_list(players_num)
+print([i.true_role for i in players_list])
 
 
 def main():
+    print("游戏开始")
+    if players_num >= 7:
+        print("七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份")
+    good_guys_win = False
+    bad_guys_win = False
     is_first_night = True
     is_night = True
-    if is_night:
-        is_night = False
-        if is_first_night:
-            is_first_night = False
-            first_night()
+    while not good_guys_win and not bad_guys_win:
+        if is_night:
+            is_night = False
+            print("---------------------------------------------------------------------------------------------")
+            print("现在是晚上")
+            alive_list = check_alive(players_list)
+            if is_first_night:
+                is_first_night = False
+                first_night(alive_list)
+            else:
+                other_nights(alive_list)
         else:
-            other_nights()
+            is_night = True
+            print("---------------------------------------------------------------------------------------------")
+            print("现在是白天")
+            alive_list = check_alive(players_list)
 
 
-
-
+main()
