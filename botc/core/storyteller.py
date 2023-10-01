@@ -4,25 +4,31 @@ from botc.core.print import print_to_all
 from botc.core.print import print_to_role
 from botc.core.print import clear_all_print_file
 from botc.core.print import print_to_prompt
+from botc.core.print import print_to_backend
 
 
 class Storyteller:
     def __init__(self):
         self.players_list = None
-        self.player_to_follow = None
-        self.player_to_protect = None
-        self.player_to_kill = None
+        self.butler_to_follow = None
+        self.monk_to_protect = None
+        self.imp_to_kill = None
         self.player_to_vote = None
         self.execute_player = None
 
     def check_kill(self):
-        if self.player_to_kill is not None:
-            if self.player_to_kill.true_role == "小恶魔":
-                # 小恶魔选择杀死自己
+        if self.imp_to_kill is not None:
+            if self.imp_to_kill.true_role == "小恶魔":
+                # ToDo 小恶魔选择杀死自己
                 pass
-            elif self.player_to_protect != self.player_to_kill:
+            elif self.monk_to_protect != self.imp_to_kill:
                 # 小恶魔选择杀死的人和僧侣选择保护的人不是同一个人, 则被小恶魔选择杀死的人死亡
-                self.player_to_kill.dead()
+                self.imp_to_kill.dead()
+                if self.imp_to_kill.true_role == "养鸦人":
+                    self.imp_to_kill.killed_by_imp = True
+                backend.info.append(f"玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role} 被小恶魔杀死。")
+            self.imp_to_kill = None
+            self.monk_to_protect = None
 
     def __check_butler_follow(self, alive_list):
         alive_role_list = [i.true_role for i in alive_list]
@@ -32,8 +38,8 @@ class Storyteller:
         for i in self.players_list:
             if i.true_role == "管家":
                 butler_index = i.player_index
-        if self.player_to_follow is not None:
-            master_role = self.player_to_follow.true_role  # 主人的身份
+        if self.butler_to_follow is not None:
+            master_role = self.butler_to_follow.true_role  # 主人的身份
             master_has_voted = None
             if self.players_list[butler_index].is_alive:
                 # 如果管家活着，将管家放到列表的最后，确保管家在主人之后投票
@@ -151,7 +157,7 @@ class Storyteller:
         # Todo:统计票数环节可以让玩家们退票，如果主人退票，管家也必须退票
 
         self.execute_player = execute_player
-        self.player_to_follow = None
+        self.butler_to_follow = None
         self.player_to_vote = None
 
     def check_win(self):

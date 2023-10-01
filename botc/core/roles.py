@@ -10,7 +10,7 @@ from botc.core.print import print_to_prompt
 
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
-# 送葬者 grave digger, 僧侣 monk, 养鸦人 crow raiser, 处女 virgin, 杀手 killer, 军人 soldier, 市长 mayor
+# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 处女 virgin, 杀手 killer, 军人 soldier, 市长 mayor
 Villagers = ["洗衣妇", "图书管理员", "调查员", "厨师", "共情者", "占卜师", "掘墓人", "僧侣", "养鸦人", "处女", "杀手",
              "军人", "市长"]
 # 外来人角色
@@ -282,7 +282,8 @@ class Cook(Role):
             result_ = random.randint(0, 3)
             while result_ == result:
                 result_ = random.randint(0, 3)
-            backend.info.append(f"玩家{self.player_index} 厨师 知道了有 {str(result_)} 对邪恶阵营玩家座位相邻。但是他中毒了，因此得到的是错误信息。")
+            backend.info.append(
+                f"玩家{self.player_index} 厨师 知道了有 {str(result_)} 对邪恶阵营玩家座位相邻。但是他中毒了，因此得到的是错误信息。")
             self.info = "有 " + str(result_) + " 对邪恶阵营玩家座位相邻。"
         else:
             backend.info.append(f"玩家{self.player_index} 厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。")
@@ -330,7 +331,8 @@ class Empath(Role):
                 f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。但是他中毒了，因此得到的是错误信息。")
             self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。"
         else:
-            backend.info.append(f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。")
+            backend.info.append(
+                f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。")
             self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
 
 
@@ -353,7 +355,8 @@ class Soothsayer(Role):
         # 游戏开始时，会有一名随机玩家（无论身份）被占卜师视为恶魔直到游戏结束，占卜师不知道其真实身份。
         players = [i for i in self.players_list if i.true_role != "占卜师"]
         rand_player = choice(players)
-        backend.info.append(f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
+        backend.info.append(
+            f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
         self.info = f"你认为 玩家{rand_player.player_index} 是小恶魔。"
 
     def skill_every_night(self):
@@ -375,7 +378,8 @@ class Soothsayer(Role):
                 result = " 中存在恶魔身份。"
             else:
                 result = " 中不存在恶魔身份。"
-            backend.info.append(f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result)
+            backend.info.append(
+                f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result)
             self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
 
 
@@ -404,7 +408,8 @@ class GraveDigger(Role):
                     f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {rand_player.role_for_register}。但是他中毒了，因此得到的是错误信息。")
                 self.info = "白天被处决的玩家身份是 " + rand_player.role_for_register
             else:
-                backend.info.append(f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {storyteller.execute_player.role_for_register}。")
+                backend.info.append(
+                    f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {storyteller.execute_player.role_for_register}。")
                 self.info = "白天被处决的玩家身份是 " + storyteller.execute_player.role_for_register
         else:
             self.info = "白天没有人被处决"
@@ -426,14 +431,48 @@ class Monk(Role):
         self.is_good_guy = True
 
     def skill_other_nights(self):
-        string = (f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号：")
-        storyteller.player_to_protect = player_input(self.true_role, self.players_list, string)
+        string = f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号："
+        storyteller.monk_to_protect = player_input(self.true_role, self.players_list, string)
         if self.toxic:
-            backend.info.append(f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.player_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
-            storyteller.player_to_protect = None
+            backend.info.append(
+                f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
+            storyteller.monk_to_protect = None
         else:
-            backend.info.append(f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.player_to_protect.player_index}。")
-        self.info = f"你今晚保护的是 玩家{storyteller.player_to_protect.player_index}"
+            backend.info.append(
+                f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}。")
+        self.info = f"你今晚保护的是 玩家{storyteller.monk_to_protect.player_index}"
+
+
+class RavenKeeper(Role):
+    """
+    养鸦人
+    如果养鸦人在夜晚死亡，可醒来并选择一名玩家并得知他的身份。
+    返回：[选择的一名玩家的登记身份]
+    """
+    def __init__(self):
+        super(RavenKeeper, self).__init__()
+        self.true_role = "养鸦人"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_outlander = True
+        self.is_good_guy = True
+
+        self.killed_by_imp = False
+
+    def skill_other_nights(self):
+        if not self.is_alive and self.killed_by_imp:
+            self.killed_by_imp = False  # 该技能仅生效一次
+            string = f"你是 玩家{self.player_index} 养鸦人，你在夜晚被恶魔杀死，你可以选择一名玩家并得知他的身份："
+            player = player_input(self.true_role, self.players_list, string)
+            if self.toxic:
+                rand_role = choice(self.players_list).role_for_register
+                backend.info.append(
+                    f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份 {rand_role}, 但是他中毒了，因此得到的是错误信息。")
+                self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {rand_role}"
+            else:
+                backend.info.append(
+                    f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份是 {player.role_for_register}。")
+                self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {player.role_for_register}"
 
 
 class Butler(Role):
@@ -454,13 +493,14 @@ class Butler(Role):
     def skill_every_night(self):
         string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
                   f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
-        storyteller.player_to_follow = player_input(self.true_role, self.players_list, string)
-        self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.player_to_follow.player_index}"
+        storyteller.butler_to_follow = player_input(self.true_role, self.players_list, string)
+        self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.butler_to_follow.player_index}"
         if self.toxic:
             backend.info.append(
-                f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.player_to_follow.player_index} 投票，但是由于他中毒了，因此技能未生效。")
+                f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票，但是由于他中毒了，因此技能未生效。")
         else:
-            backend.info.append(f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.player_to_follow.player_index} 投票。")
+            backend.info.append(
+                f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票。")
 
 
 class Drunkard(Role):
@@ -533,9 +573,14 @@ class Poisoner(Role):
             self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
 
     def skill_every_night(self):
+        for i in self.players_list:
+            if i.toxic:
+                i.toxic = False
+                backend.info.append(f"玩家{i.player_index} {i.true_role} 的毒已经被解开了。")
         string = f"你是 玩家{self.player_index} 投毒者，请输入你今晚想投毒的玩家编号："
         self.player_to_poison = player_input(self.true_role, self.players_list, string)
-        backend.info.append(f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
+        backend.info.append(
+            f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
         self.player_to_poison.toxic = True
         backend.info.append(f"玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role} 已被投毒")
         self.info = f"你今晚要投毒的是 玩家{self.player_to_poison.player_index}"
@@ -660,53 +705,41 @@ class Imp(Role):
             bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
             good_not_in_game = [i for i in Good_guys if i not in [r.true_role for r in self.players_list]]
             rand_3_good_not_in_game = sample(good_not_in_game, 3)
-            backend.info.append(f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
+            backend.info.append(
+                f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
             self.info = f"本局坏人阵营玩家：{bad_players_in_game}, 本局三个不在场的好人身份：{rand_3_good_not_in_game}。"
 
     def skill_other_nights(self):
         string = f"你是 玩家{self.player_index} 小恶魔，请输入你今晚想杀死的玩家编号："
-        storyteller.player_to_kill = player_input(self.true_role, self.players_list, string)
+        storyteller.imp_to_kill = player_input(self.true_role, self.players_list, string)
         if self.toxic:
-            backend.info.append(f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.player_to_kill.player_index} {storyteller.player_to_kill.true_role}，但是由于他中毒了，因此技能未生效。")
-            storyteller.player_to_kill = None
+            backend.info.append(
+                f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}，但是由于他中毒了，因此技能未生效。")
+            storyteller.imp_to_kill = None
         else:
-            backend.info.append(f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.player_to_kill.player_index} {storyteller.player_to_kill.true_role}。")
-        self.info = f"你今晚要杀死的是 玩家{storyteller.player_to_kill.player_index}"
+            # if storyteller.imp_to_kill.true_role == "养鸦人":
+            #     storyteller.imp_to_kill.killed_by_imp = True
+            backend.info.append(
+                f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}。")
+        self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
 
 
-washerwoman = Washerwoman()
-librarian = Librarian()
-investigator = Investigator()
-cook = Cook()
-empath = Empath()
-soothsayer = Soothsayer()
-grave_digger = GraveDigger()
-monk = Monk()
-butler = Butler()
-drunkard = Drunkard()
-hermit = Hermit()
-poisoner = Poisoner()
-spy = Spy()
-baron = Baron()
-imp = Imp()
-
-# role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
-#              Butler(), Drunkard(), Poisoner(), Spy(), Baron(), Imp()]
-role_list = [washerwoman, librarian, investigator, cook, empath, soothsayer, grave_digger, monk,
-             butler, drunkard, hermit, poisoner, spy, baron, imp]
+role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
+             RavenKeeper(), Butler(), Drunkard(), Hermit(), Poisoner(), Spy(), Baron(), Imp()]
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
 # 送葬者 grave digger, 僧侣 monk, 养鸦人 crow raiser, 处女 virgin, 杀手 killer, 军人 soldier, 市长 mayor
-villager_list = [washerwoman, librarian, investigator, cook, empath, soothsayer, grave_digger, monk]
+villager_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
+                 RavenKeeper()]
 # 外来人角色
 # 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣人 Saint
-outlander_list = [butler, drunkard, hermit]
+outlander_list = [Butler(), Drunkard(), Hermit()]
 # 爪牙角色
 # 投毒者 poisoner, 间谍 spy, 猩红女郎 Scarlet Woman, 男爵 Baron
-minion_list = [poisoner, spy, baron]
+minion_list = [Poisoner(), Spy(), Baron()]
 # 恶魔角色
 # 小恶魔 Imp
-demon_list = [imp]
+demon_list = [Imp()]
 # 好人阵营
 good_guys_list = villager_list + outlander_list
 # 坏人阵营
