@@ -455,13 +455,12 @@ class Butler(Role):
         string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
                   f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
         storyteller.player_to_follow = player_input(self.true_role, self.players_list, string)
+        self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.player_to_follow.player_index}"
         if self.toxic:
             backend.info.append(
                 f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.player_to_follow.player_index} 投票，但是由于他中毒了，因此技能未生效。")
-            storyteller.player_to_follow = None
         else:
             backend.info.append(f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.player_to_follow.player_index} 投票。")
-        self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.player_to_follow.player_index}"
 
 
 class Drunkard(Role):

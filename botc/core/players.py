@@ -59,11 +59,12 @@ def create_players_list(players_num):
     else:
         raise ValueError("玩家人数必须在5~15人之间！")
 
-    # test
-    players_list = [roles.villager_list[0], roles.villager_list[1], roles.villager_list[2], roles.villager_list[3], roles.villager_list[4]] + sample(roles.outlander_list, 1) + sample(roles.minion_list, 1) + sample(roles.demon_list, 1)
+    # # test
+    # players_list = [roles.villager_list[0], roles.villager_list[1], roles.villager_list[2], roles.villager_list[3], roles.villager_list[4]] + [roles.outlander_list[0]] + [roles.minion_list[0]] + sample(roles.demon_list, 1)
     for i in players_list:
         if i.true_role == "男爵":
             players_list = roles.Baron().passive_skill(players_list)
+    players_list = sample(players_list, len(players_list))
     for i in range(players_num):
         players_list[i].player_index = i + 1
         players_list[i].players_list = players_list

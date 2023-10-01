@@ -39,7 +39,7 @@ def main(players_num):
             is_night = False
             print_to_all("---------------------------------------------------------------------------------------------")
             print_to_all("现在是晚上")
-            print_to_all(f"目前还存活的玩家编号为：, {[i.player_index for i in players_list if i.is_alive]}")
+            print_to_all(f"目前还存活的玩家编号为：{[i.player_index for i in players_list if i.is_alive]}")
             if is_first_night:
                 is_first_night = False
                 first_night(players_list)
@@ -52,7 +52,7 @@ def main(players_num):
             is_night = True
             print_to_all("---------------------------------------------------------------------------------------------")
             print_to_all("现在是白天")
-            print_to_all(f"目前还存活的玩家编号为：, {[i.player_index for i in players_list if i.is_alive]}")
+            print_to_all(f"目前还存活的玩家编号为：{[i.player_index for i in players_list if i.is_alive]}")
             storyteller.vote_to_execute()
         good_guys_win, bad_guys_win = storyteller.check_win()
     if good_guys_win:
