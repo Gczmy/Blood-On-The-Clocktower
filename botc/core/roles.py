@@ -33,20 +33,20 @@ Traveller = ["替罪羊", "枪手", "乞丐", "官员", "盗贼"]
 roles_all = Villagers + Outlanders + Minions + Demon + Traveller
 
 
-def player_input(current_role, players_list, string):
+def player_input(current_role, alive_list, string):
     player = None
     if current_role == "小恶魔":
-        alive_list = [i.player_index for i in players_list if i.is_alive]
+        alive_index_list = [i.player_index for i in alive_list]
     else:
-        alive_list = [i.player_index for i in players_list if i.is_alive and i.true_role != current_role]
-    while not isinstance(player, int) or player not in alive_list:
+        alive_index_list = [i.player_index for i in alive_list if i.true_role != current_role]
+    while not isinstance(player, int) or player not in alive_index_list:
         try:
-            player = int(input(string + str(alive_list)))
-            if player < 1 or player > len(alive_list):
-                print_to_role(current_role, f"请输入玩家编号{alive_list}。")
+            player = int(input(string + str(alive_index_list)))
+            if player < 1 or player > len(alive_index_list):
+                print_to_role(current_role, f"请输入玩家编号{alive_index_list}。")
         except ValueError:
-            print_to_role(current_role, f"请输入玩家编号{alive_list}。")
-    return [i for i in players_list if i.player_index == player][0]
+            print_to_role(current_role, f"请输入玩家编号{alive_index_list}。")
+    return [i for i in alive_list if i.player_index == player][0]
 
 
 class Role:
@@ -68,6 +68,8 @@ class Role:
         self.is_traveller = False
         self.is_good_guy = False
         self.is_bad_guy = False
+
+        self.player_to_execute = 0
 
     @property
     def player_index(self):
@@ -91,16 +93,48 @@ class Role:
     def poisoned(self):
         self.toxic = True
 
+    def vote_input(self, current_role, string):
+        player_index_list = [i.player_index for i in self.players_list]
+        player_input = None
+        while not isinstance(player_input, int) or not (player_input in player_index_list or player_input == 0):
+            try:
+                player_input = int(input(string + str(player_index_list)))
+                if player_input < 0 or player_input > len(player_index_list):
+                    print_to_role(current_role, f"请输入玩家编号{player_index_list},或输入 0 弃票。")
+            except ValueError:
+                print_to_role(current_role, f"请输入玩家编号{player_index_list},或输入 0 弃票。")
+        return player_input
+
+    def vote(self):
+        self.player_to_execute = self.vote_input(self.true_role, f"你是{self.player_index} {self.role_for_register}, "
+                                                                 f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
+
+        if self.player_to_execute == 0:
+            # 玩家弃票
+            backend.info.append(f"玩家{self.player_index} 选择弃票")
+            print_to_all(f"玩家{self.player_index} 选择弃票")
+        else:
+            # 玩家投了票
+            for player in self.players_list:
+                if player.true_role == "管家":
+                    if self.true_role == storyteller.butler_to_follow.true_role:
+                        player.master_has_voted = self.player_to_execute
+            storyteller.player_vote_list.append(self.player_to_execute)
+            print_to_all(f"玩家{self.player_index} 选择投票给 玩家{self.player_to_execute}")
+            player_to_execute = [i for i in self.players_list if i.player_index == self.player_to_execute][0]
+            backend.info.append(
+                f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+
     def passive_skill_before_game(self):
         pass
 
     def passive_skill_first_night(self):
         pass
 
-    def passive_skill_other_nights(self):
+    def passive_skill_other_nights(self, alive_list):
         pass
 
-    def passive_skill_every_night(self):
+    def passive_skill_every_night(self, alive_list):
         pass
 
     def skill_before_game(self):
@@ -109,10 +143,10 @@ class Role:
     def skill_first_night(self):
         pass
 
-    def skill_other_nights(self):
+    def skill_other_nights(self, alive_list):
         pass
 
-    def skill_every_night(self):
+    def skill_every_night(self, alive_list):
         pass
 
 
@@ -305,18 +339,16 @@ class Empath(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_every_night(self):
-        player_list = self.players_list
-        alive_player_list = [i for i in player_list if i.is_alive]
+    def skill_every_night(self, alive_list):
         # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
-        bad_guys_in_game = [i for i in alive_player_list if i.is_alive and i.role_for_register in Bad_guys]
+        bad_guys_in_game = [i for i in alive_list if i.is_alive and i.role_for_register in Bad_guys]
         # 得到本局所有邪恶阵营玩家编号
         bad_guys_player_index = [i.player_index for i in bad_guys_in_game]
         # 计算与自己相邻的2位存活玩家（不包括死亡玩家）有几位属于邪恶阵营
         result = 0
-        if self.player_index == len(alive_player_list) and 1 in bad_guys_player_index:
+        if self.player_index == len(alive_list) and 1 in bad_guys_player_index:
             result += 1
-        if self.player_index == 1 and len(alive_player_list) in bad_guys_player_index:
+        if self.player_index == 1 and len(alive_list) in bad_guys_player_index:
             result += 1
         if self.player_index + 1 in bad_guys_player_index:
             result += 1
@@ -350,6 +382,7 @@ class Soothsayer(Role):
         self.role_for_self = self.true_role
         self.is_villager = True
         self.is_good_guy = True
+        self.think_imp = None
 
     def passive_skill_first_night(self):
         # 游戏开始时，会有一名随机玩家（无论身份）被占卜师视为恶魔直到游戏结束，占卜师不知道其真实身份。
@@ -357,14 +390,15 @@ class Soothsayer(Role):
         rand_player = choice(players)
         backend.info.append(
             f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
-        self.info = f"你认为 玩家{rand_player.player_index} 是小恶魔。"
+        # self.info = f"你认为 玩家{rand_player.player_index} 是小恶魔。"
+        self.think_imp = rand_player
 
-    def skill_every_night(self):
+    def skill_every_night(self, alive_list):
         # (注意使用登记身份)
         string = f"你是 玩家{self.player_index} 占卜师，请输入你想占卜的第一位玩家编号："
-        player_1 = player_input(self.true_role, self.players_list, string)
+        player_1 = player_input(self.true_role, alive_list, string)
         string = "请输入你想占卜的第二位玩家编号："
-        player_2 = player_input(self.true_role, self.players_list, string)
+        player_2 = player_input(self.true_role, alive_list, string)
         if self.toxic:
             if player_1.role_for_register in Demon or player_2.role_for_register in Demon:
                 result = " 中不存在恶魔身份。"
@@ -374,7 +408,8 @@ class Soothsayer(Role):
                 f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result + "但是他中毒了，因此得到的是错误信息。")
             self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
         else:
-            if player_1.role_for_register in Demon or player_2.role_for_register in Demon:
+            if player_1.role_for_register in Demon or player_2.role_for_register in Demon \
+                    or self.think_imp.true_role == player_1.true_role or self.think_imp.true_role == player_2.true_role:
                 result = " 中存在恶魔身份。"
             else:
                 result = " 中不存在恶魔身份。"
@@ -398,7 +433,7 @@ class GraveDigger(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_other_nights(self):
+    def skill_other_nights(self, alive_list):
         player_list = self.players_list
         if storyteller.execute_player is not None:
             # (注意使用登记身份)
@@ -430,9 +465,9 @@ class Monk(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_other_nights(self):
+    def skill_other_nights(self, alive_list):
         string = f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号："
-        storyteller.monk_to_protect = player_input(self.true_role, self.players_list, string)
+        storyteller.monk_to_protect = player_input(self.true_role, alive_list, string)
         if self.toxic:
             backend.info.append(
                 f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
@@ -449,6 +484,7 @@ class RavenKeeper(Role):
     如果养鸦人在夜晚死亡，可醒来并选择一名玩家并得知他的身份。
     返回：[选择的一名玩家的登记身份]
     """
+
     def __init__(self):
         super(RavenKeeper, self).__init__()
         self.true_role = "养鸦人"
@@ -459,7 +495,7 @@ class RavenKeeper(Role):
 
         self.killed_by_imp = False
 
-    def skill_other_nights(self):
+    def skill_other_nights(self, alive_list):
         if not self.is_alive and self.killed_by_imp:
             self.killed_by_imp = False  # 该技能仅生效一次
             string = f"你是 玩家{self.player_index} 养鸦人，你在夜晚被恶魔杀死，你可以选择一名玩家并得知他的身份："
@@ -490,10 +526,52 @@ class Butler(Role):
         self.is_outlander = True
         self.is_good_guy = True
 
-    def skill_every_night(self):
+        self.master_has_voted = None
+
+    def vote(self):
+        if self.toxic:
+            player_to_execute = self.vote_input(self.true_role,
+                                                f"你是{self.player_index} {self.role_for_register}, "
+                                                f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
+            if player_to_execute == 0:
+                # 玩家弃票
+                backend.info.append(f"玩家{self.player_index} 选择弃票")
+                print_to_all(f"玩家{self.player_index} 选择弃票")
+            else:
+                storyteller.player_vote_list.append(player_to_execute)
+                print_to_all(f"玩家{self.player_index} 选择投票给 玩家{player_to_execute}")
+                player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
+                backend.info.append(
+                    f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+        else:
+            if self.master_has_voted is not None:
+                # 主人投了票
+                player_to_execute = self.vote_input(self.true_role,
+                                                    f"你是玩家{self.player_index} {self.role_for_register}, "
+                                                    f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
+                if player_to_execute == 0:
+                    # 玩家弃票
+                    backend.info.append(f"玩家{self.player_index} 选择弃票")
+                    print_to_all(f"玩家{self.player_index} 选择弃票")
+                else:
+                    storyteller.player_vote_list.append(player_to_execute)
+                    print_to_all(f"玩家{self.player_index} 选择投票给 玩家{player_to_execute}")
+                    player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
+                    backend.info.append(
+                        f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+            else:
+                # 主人没投票
+                backend.info.append(f"玩家{self.player_index} 选择弃票")
+                print_to_all(f"玩家{self.player_index} 选择弃票")
+                backend.info.append(
+                    f"玩家{self.player_index} 管家, 由于昨晚他选择的主人弃票，因此他也无法投票，视为直接弃票")
+                self.info = f"你是 玩家{self.player_index} 管家, 由于昨晚你选择的主人弃票，因此你也无法投票，视为直接弃票"
+                print_to_role(self.true_role, self.info)
+
+    def skill_every_night(self, alive_list):
         string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
                   f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
-        storyteller.butler_to_follow = player_input(self.true_role, self.players_list, string)
+        storyteller.butler_to_follow = player_input(self.true_role, alive_list, string)
         self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.butler_to_follow.player_index}"
         if self.toxic:
             backend.info.append(
@@ -539,7 +617,7 @@ class Hermit(Role):
         self.is_outlander = True
         self.is_good_guy = True
 
-    def skill_every_night(self):
+    def skill_every_night(self, alive_list):
         if self.toxic:
             pass
         else:
@@ -572,13 +650,13 @@ class Poisoner(Role):
             backend.info.append(f"玩家{self.player_index} 投毒者 知道了本局坏人阵营玩家：{bad_players_in_game}")
             self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
 
-    def skill_every_night(self):
+    def skill_every_night(self, alive_list):
         for i in self.players_list:
             if i.toxic:
                 i.toxic = False
                 backend.info.append(f"玩家{i.player_index} {i.true_role} 的毒已经被解开了。")
         string = f"你是 玩家{self.player_index} 投毒者，请输入你今晚想投毒的玩家编号："
-        self.player_to_poison = player_input(self.true_role, self.players_list, string)
+        self.player_to_poison = player_input(self.true_role, alive_list, string)
         backend.info.append(
             f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
         self.player_to_poison.toxic = True
@@ -608,7 +686,7 @@ class Spy(Role):
             backend.info.append(f"玩家{self.player_index} 间谍 知道了本局坏人阵营玩家：{bad_players_in_game}")
             self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
 
-    def passive_skill_every_night(self):
+    def passive_skill_every_night(self, alive_list):
         # 被动技能 间谍可能会被登记为正义阵营的特定身份（村民或外乡人），即使死亡。
         if self.toxic:
             pass
@@ -709,19 +787,18 @@ class Imp(Role):
                 f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
             self.info = f"本局坏人阵营玩家：{bad_players_in_game}, 本局三个不在场的好人身份：{rand_3_good_not_in_game}。"
 
-    def skill_other_nights(self):
+    def skill_other_nights(self, alive_list):
         string = f"你是 玩家{self.player_index} 小恶魔，请输入你今晚想杀死的玩家编号："
-        storyteller.imp_to_kill = player_input(self.true_role, self.players_list, string)
+        storyteller.imp_to_kill = player_input(self.true_role, alive_list, string)
         if self.toxic:
             backend.info.append(
                 f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}，但是由于他中毒了，因此技能未生效。")
+            self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
             storyteller.imp_to_kill = None
         else:
-            # if storyteller.imp_to_kill.true_role == "养鸦人":
-            #     storyteller.imp_to_kill.killed_by_imp = True
             backend.info.append(
                 f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}。")
-        self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
+            self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
 
 
 role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),

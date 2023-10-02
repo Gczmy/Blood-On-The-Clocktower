@@ -15,8 +15,10 @@ class Storyteller:
         self.imp_to_kill = None
         self.player_to_vote = None
         self.execute_player = None
+        self.killed_last_night = None
+        self.player_vote_list = []
 
-    def check_kill(self):
+    def check_kill_in_night(self):
         if self.imp_to_kill is not None:
             if self.imp_to_kill.true_role == "小恶魔":
                 # ToDo 小恶魔选择杀死自己
@@ -26,9 +28,17 @@ class Storyteller:
                 self.imp_to_kill.dead()
                 if self.imp_to_kill.true_role == "养鸦人":
                     self.imp_to_kill.killed_by_imp = True
+                self.killed_last_night = self.imp_to_kill
                 backend.info.append(f"玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role} 被小恶魔杀死。")
             self.imp_to_kill = None
             self.monk_to_protect = None
+
+    def check_kill_in_daytime(self):
+        if self.killed_last_night is None:
+            print_to_all(f"昨晚没有玩家死亡。")
+        else:
+            print_to_all(f"昨晚 玩家{self.killed_last_night.player_index} 死亡。")
+        self.killed_last_night = None
 
     def __check_butler_follow(self, alive_list):
         alive_role_list = [i.true_role for i in alive_list]
@@ -47,89 +57,21 @@ class Storyteller:
                 alive_role_list.append("管家")
         return alive_role_list, butler_index, master_role, master_has_voted
 
-    def __vote_input(self, current_role, alive_player_index_list, string):
-        player_input = None
-        while not isinstance(player_input, int) or not (player_input in alive_player_index_list or player_input == 0):
-            try:
-                player_input = int(input(string + str(alive_player_index_list)))
-                if player_input < 0 or player_input > len(alive_player_index_list):
-                    print_to_role(current_role, f"请输入玩家编号{alive_player_index_list},或输入 0 弃票。")
-            except ValueError:
-                print_to_role(current_role, f"请输入玩家编号{alive_player_index_list},或输入 0 弃票。")
-        return player_input
-
     def vote_to_execute(self):
         print("投票开始")
         alive_list = [i for i in self.players_list if i.is_alive]
-        alive_player_index_list = [i.player_index for i in alive_list]
-
-        alive_role_list, butler_index, master_role, master_has_voted = self.__check_butler_follow(alive_list)
-        player_vote_list = []
-
+        butler = None
         for player in alive_list:
-            # current_player = [i.player_index for i in alive_list if i.true_role == current_role][0]
             if player.true_role == "管家":
-                # 管家玩家投票
-                if player.toxic:
-                    player_to_execute = self.__vote_input(player.true_role, alive_player_index_list,
-                                                          f"你是{player.player_index} {player.role_for_register}, 请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
-                    if player_to_execute == 0:
-                        # 玩家弃票
-                        backend.info.append(f"玩家{player.player_index} 选择弃票")
-                        print_to_all(f"玩家{player.player_index} 选择弃票")
-                    else:
-                        player_vote_list.append(player_to_execute)
-                        print_to_all(f"玩家{player.player_index} 选择投票给 玩家{player_to_execute}")
-                        player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
-                        backend.info.append(
-                            f"玩家{player.player_index} {player.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
-                else:
-                    if master_has_voted is not None:
-                        # 主人投了票
-                        player_to_execute = self.__vote_input(player.true_role, alive_player_index_list,
-                                                              f"你是玩家{player.player_index} {player.role_for_register}, "
-                                                              f"你昨晚选择的主人选择投票给 玩家{player_to_execute.player_index}, "
-                                                              f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
-                        if player_to_execute == 0:
-                            # 玩家弃票
-                            backend.info.append(f"玩家{player.player_index} 选择弃票")
-                            print_to_all(f"玩家{player.player_index} 选择弃票")
-                        else:
-                            player_vote_list.append(player_to_execute)
-                            print_to_all(f"玩家{player.player_index} 选择投票给 玩家{player_to_execute}")
-                            player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
-                            backend.info.append(
-                                f"玩家{player.player_index} {player.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
-                    else:
-                        # 主人没投票
-                        player_to_execute = 0
-                        backend.info.append(f"玩家{player.player_index} 选择弃票")
-                        print_to_all(f"玩家{player.player_index} 选择弃票")
-                        backend.info.append(
-                            f"玩家{player.player_index} 管家, 由于昨晚他选择的主人弃票，因此他也无法投票，视为直接弃票")
-                        player.info = f"你是 玩家{player.player_index} 管家, 由于昨晚你选择的主人弃票，因此你也无法投票，视为直接弃票"
-                        print_to_role(player.true_role, player.info)
-            else:
-                # 非管家玩家投票
-                player_to_execute = self.__vote_input(player.true_role, alive_player_index_list,
-                                                      f"你是{player.player_index} {player.role_for_register}, 请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
-
-                if player_to_execute == 0:
-                    # 玩家弃票
-                    backend.info.append(f"玩家{player.player_index} 选择弃票")
-                    print_to_all(f"玩家{player.player_index} 选择弃票")
-                else:
-                    # 玩家投了票
-                    if "管家" in alive_role_list:
-                        if player.true_role == master_role:
-                            master_has_voted = player_to_execute
-                    player_vote_list.append(player_to_execute)
-                    print_to_all(f"玩家{player.player_index} 选择投票给 玩家{player_to_execute}")
-                    player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
-                    backend.info.append(f"玩家{player.player_index} {player.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+                # 如果管家活着，将管家放到列表的最后，确保管家在主人之后投票
+                butler = player
+                continue
+            player.vote()
+        if butler is not None:
+            butler.vote()
         # 唱票
         print_to_all("投票结束")
-        vote_counts = Counter(player_vote_list)
+        vote_counts = Counter(self.player_vote_list)
         most_common_vote = vote_counts.most_common(1)
         if len(vote_counts.values()) > 1:
             most_common_vote = vote_counts.most_common(2)
@@ -155,9 +97,7 @@ class Storyteller:
             execute_player.dead()
 
         # Todo:统计票数环节可以让玩家们退票，如果主人退票，管家也必须退票
-
-        self.execute_player = execute_player
-        self.butler_to_follow = None
+        self.player_vote_list = []
         self.player_to_vote = None
 
     def check_win(self):
