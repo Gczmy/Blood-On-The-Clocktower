@@ -23,15 +23,23 @@ class Storyteller:
     def check_kill_in_night(self):
         if self.imp_to_kill is not None:
             if self.monk_to_protect != self.imp_to_kill:
+                if self.imp_to_kill.true_role == "士兵":
+                    if self.imp_to_kill.toxic:
+                        self.imp_to_kill.dead()
+                        self.killed_last_night = self.imp_to_kill
+                        backend.info.append(
+                            f"玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role} 被小恶魔杀死, 由于士兵中毒, 士兵技能失效。")
+                    else:
+                        # 士兵不会被恶魔杀死。
+                        backend.info.append(
+                            f"小恶魔选择杀死 玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role}，"
+                            f"触发了士兵的技能，没有人死亡。")
                 # 小恶魔选择杀死的人和僧侣选择保护的人不是同一个人, 则被小恶魔选择杀死的人死亡
                 self.imp_to_kill.dead()
                 if self.imp_to_kill.true_role == "养鸦人":
                     self.imp_to_kill.killed_by_imp = True
                 self.killed_last_night = self.imp_to_kill
                 backend.info.append(f"玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role} 被小恶魔杀死。")
-                if self.imp_to_kill.true_role == "小恶魔":
-                    # ToDo 小恶魔选择杀死自己
-                    pass
             self.imp_to_kill = None
             self.monk_to_protect = None
 
@@ -51,17 +59,21 @@ class Storyteller:
                 print_to_all(f"玩家{player.player_index} 提名了 玩家{self.player_nominated.player_index}。")
                 print_to_backend(f"玩家{player.player_index} {player.true_role} 提名了 玩家{self.player_nominated.player_index} {self.player_nominated.true_role}。")
                 if self.player_nominated.true_role == "圣女":
-                    if not self.player_nominated.nominated:
-                        # 圣女首次被提名
-                        self.player_nominated.nominated = True
-                        # 圣女首次被提名时，若提名者身份为村民，则该村民立即被处决, 且白天结束。
-                        if player.is_villager:
-                            player.dead()
-                            print_to_all(f"玩家{player.player_index} 被处决，白天结束。")
-                            print_to_backend(f"玩家{player.player_index} {player.true_role} 由于圣女技能触发被处决，白天结束。")
-                            return
-                        else:
-                            print_to_backend(f"玩家{player.player_index} 提名了 圣女，提名者身份不是村民，圣女技能视为被使用，正常进行提名投票。")
+                    if self.player_nominated.toxic:
+                        print_to_backend(
+                            f"玩家{player.player_index} 提名了 圣女，圣女中毒了，圣女技能视为被使用，正常进行提名投票。")
+                    else:
+                        if not self.player_nominated.nominated:
+                            # 圣女首次被提名
+                            self.player_nominated.nominated = True
+                            # 圣女首次被提名时，若提名者身份为村民，则该村民立即被处决, 且白天结束。
+                            if player.is_villager:
+                                player.dead()
+                                print_to_all(f"玩家{player.player_index} 被处决，白天结束。")
+                                print_to_backend(f"玩家{player.player_index} {player.true_role} 由于圣女技能触发被处决，白天结束。")
+                                return
+                            else:
+                                print_to_backend(f"玩家{player.player_index} 提名了 圣女，提名者身份不是村民，圣女技能视为被使用，正常进行提名投票。")
                 # 对该提名进行投票
                 self.vote_to_execute()
                 self.player_nominated = None
@@ -118,6 +130,23 @@ class Storyteller:
         self.nominate_list = []
         self.votes_list = []
         self.nominate_votes = 0
+
+    def check_daytime_skill(self):
+        alive_list = [i for i in self.players_list if i.is_alive]
+        for player in self.players_list:
+            if player.true_role == "杀手":
+                string = f"你是 玩家{player.player_index} 杀手，你是否选择使用你的刺杀技能， 注意本局游戏你仅有一次刺杀机会(输入 1 使用技能，输入 0 不使用)："
+                use_skill = None
+                while not isinstance(use_skill, int):
+                    try:
+                        use_skill = int(input(string))
+                        if use_skill != 0 and use_skill != 1:
+                            print_to_role(player.true_role, f"请输入 1 使用技能,或输入 0 不使用。")
+                    except ValueError:
+                        print_to_role(player.true_role, f"请输入 1 使用技能,或输入 0 不使用。")
+                player.skill_daytime(alive_list, use_skill)
+            if player.true_role == "猩红女郎":
+                player.passive_skill_other_nights(alive_list)
 
     def check_win(self):
         alive_in_game = [i for i in self.players_list if i.is_alive]

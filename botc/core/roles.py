@@ -542,8 +542,7 @@ class Virgin(Role):
         self.is_villager = True
         self.is_good_guy = True
         self.nominated = False
-
-        # 圣女技能在storyteller.nomination()中被处理
+        # 圣女技能在storyteller.nomination()中触发。
 
 
 class Slayer(Role):
@@ -558,6 +557,46 @@ class Slayer(Role):
         self.role_for_self = self.true_role
         self.is_villager = True
         self.is_good_guy = True
+        self.player_to_slay = None
+        self.skill_has_been_used = False
+
+    def skill_daytime(self, alive_list, use_skill):
+        if use_skill and not self.skill_has_been_used:
+            self.skill_has_been_used = True
+            string = f"请输入你想刺杀的玩家编号："
+            self.player_to_slay = player_input(self.true_role, alive_list, string)
+            backend.info.append(f"玩家{self.player_index} 杀手 选择刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role}。")
+            if self.toxic:
+                backend.info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 时处于中毒状态，因此刺杀失败，无事发生。")
+                self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 失败，无事发生。"
+                print_to_role(self.true_role, self.info)
+            else:
+                if self.player_to_slay.role_for_register == "小恶魔":
+                    self.player_to_slay.is_alive = False
+                    backend.info.append(f"玩家{self.player_index} 杀手 刺杀成功，玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 已死亡。")
+                    print_to_all(f"玩家{self.player_index} 刺杀成功，玩家{self.player_to_slay.player_index} 已死亡。")
+                    self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 成功，玩家{self.player_to_slay.player_index}已死亡。"
+                    print_to_role(self.true_role, self.info)
+                else:
+                    backend.info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 失败，无事发生。")
+                    self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 失败，无事发生。"
+                    print_to_role(self.true_role, self.info)
+
+
+class Soldier(Role):
+    """
+    士兵
+    士兵不会被恶魔杀死。
+    """
+
+    def __init__(self):
+        super(Soldier, self).__init__()
+        self.true_role = "士兵"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
+        # 士兵技能在storyteller.check_kill_in_night()中触发。
 
 
 class Butler(Role):
@@ -795,8 +834,11 @@ class ScarletWoman(Role):
 
     def passive_skill_other_nights(self, alive_list):
         imp = [i for i in self.players_list if i.true_role == "小恶魔"][0]
-        if not imp.is_alive:
+        good_guy_alive_num = len([i for i in self.players_list if i.is_good_guy and i.is_alive])
+        if not imp.is_alive and good_guy_alive_num >= 5:
             self.role_for_register = "小恶魔"
+            backend.info.append(f"玩家{imp.player_index} 小恶魔 已死亡，且场上存活超过5个好人，玩家{self.player_index} 猩红女郎 登记身份已成为 小恶魔。")
+            self.info = f"小恶魔 已经死亡，且场上存活超过5个好人，你是 猩红女郎 ，你的登记身份已成为 小恶魔。"
 
 
 class Baron(Role):
@@ -872,18 +914,19 @@ class Imp(Role):
 
 
 role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
-             RavenKeeper(), Butler(), Drunkard(), Hermit(), Poisoner(), Spy(), Baron(), Imp()]
+             RavenKeeper(), Virgin(), Slayer(), Soldier(), Butler(), Drunkard(), Hermit(), Poisoner(), Spy(),
+             ScarletWoman(), Baron(), Imp()]
 # 村民角色
 # 洗衣妇 Washerwoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empath, 占卜师 Soothsayer,
 # 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 圣女 Virgin, 杀手 slayer, 军人 soldier, 市长 mayor
 villager_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
-                 RavenKeeper(), Virgin()]
+                 RavenKeeper(), Virgin(), Slayer(), Soldier()]
 # 外来人角色
 # 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣徒 Saint
 outlander_list = [Butler(), Drunkard(), Hermit()]
 # 爪牙角色
 # 投毒者 poisoner, 间谍 spy, 猩红女郎 Scarlet Woman, 男爵 Baron
-minion_list = [Poisoner(), Spy(), Baron()]
+minion_list = [Poisoner(), Spy(), ScarletWoman(), Baron()]
 # 恶魔角色
 # 小恶魔 Imp
 demon_list = [Imp()]

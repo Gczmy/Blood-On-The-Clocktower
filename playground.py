@@ -1,4 +1,5 @@
 import botc.core.backend as backend
+from botc.core.roles import player_input
 from botc.core.players import create_players_list
 from botc.core.nights import first_night
 from botc.core.nights import other_nights
@@ -52,6 +53,7 @@ def main(players_num):
             print_to_all("---------------------------------------------------------------------------------------------")
             print_to_all("现在是白天")
             storyteller.check_kill_in_daytime()
+
             print_to_all(f"目前还存活的玩家编号为：{[i.player_index for i in players_list if i.is_alive]}")
             storyteller.nomination()
         good_guys_win, bad_guys_win = storyteller.check_win()
