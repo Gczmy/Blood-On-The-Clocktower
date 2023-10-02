@@ -51,12 +51,17 @@ class Storyteller:
                 print_to_all(f"玩家{player.player_index} 提名了 玩家{self.player_nominated.player_index}。")
                 print_to_backend(f"玩家{player.player_index} {player.true_role} 提名了 玩家{self.player_nominated.player_index} {self.player_nominated.true_role}。")
                 if self.player_nominated.true_role == "圣女":
-                    # 圣女首次被提名时，若提名者身份为村民，则该村民立即被处决, 且白天结束。 todo
-                    if player.is_villager:
-                        player.dead()
-                        print_to_all(f"玩家{player.player_index} 被处决，白天结束。")
-                        print_to_backend(f"玩家{player.player_index} {player.true_role} 由于圣女技能触发被处决，白天结束。")
-                        break
+                    if not self.player_nominated.nominated:
+                        # 圣女首次被提名
+                        self.player_nominated.nominated = True
+                        # 圣女首次被提名时，若提名者身份为村民，则该村民立即被处决, 且白天结束。
+                        if player.is_villager:
+                            player.dead()
+                            print_to_all(f"玩家{player.player_index} 被处决，白天结束。")
+                            print_to_backend(f"玩家{player.player_index} {player.true_role} 由于圣女技能触发被处决，白天结束。")
+                            return
+                        else:
+                            print_to_backend(f"玩家{player.player_index} 提名了 圣女，提名者身份不是村民，圣女技能视为被使用，正常进行提名投票。")
                 # 对该提名进行投票
                 self.vote_to_execute()
                 self.player_nominated = None
@@ -116,18 +121,18 @@ class Storyteller:
 
     def check_win(self):
         alive_in_game = [i for i in self.players_list if i.is_alive]
-        alive_roles_in_game = [i.true_role for i in self.players_list if i.is_alive]
+        alive_register_in_game = [i.role_for_register for i in self.players_list if i.is_alive]
         good_guys_win = False
         bad_guys_win = False
         # 场上不存在恶魔，且没有办法立即生成一个新的恶魔，即好人方获胜
-        if "小恶魔" not in alive_roles_in_game:
+        if "小恶魔" not in alive_register_in_game:
             good_guys_win = True
         # 如果好人方全部死亡，则恶魔方胜利。
         alive_good_guys = [i for i in self.players_list if i.is_good_guy and i.is_alive]
         if not alive_good_guys:
             bad_guys_win = True
         # 如只剩2名玩家，恶魔在场，则恶魔方直接胜利。
-        elif len(alive_in_game) <= 2 and "小恶魔" in alive_roles_in_game:
+        elif len(alive_in_game) <= 2 and "小恶魔" in alive_register_in_game:
             bad_guys_win = True
         return good_guys_win, bad_guys_win
 

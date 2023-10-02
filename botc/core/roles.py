@@ -541,11 +541,16 @@ class Virgin(Role):
         self.role_for_self = self.true_role
         self.is_villager = True
         self.is_good_guy = True
+        self.nominated = False
 
         # 圣女技能在storyteller.nomination()中被处理
 
 
 class Slayer(Role):
+    """
+    杀手
+    杀手在每局游戏仅有一次机会，在白天公开选择一名玩家，若该玩家身份为恶魔，该玩家就会死亡。
+    """
     def __init__(self):
         super(Slayer, self).__init__()
         self.true_role = "杀手"
@@ -775,6 +780,25 @@ class Spy(Role):
         self.info = info
 
 
+class ScarletWoman(Role):
+    """
+    猩红女郎
+    若场上存在5名或更多玩家存活但恶魔死亡，则猩红女郎会变为恶魔（旅人不算在内）。
+    """
+    def __init__(self):
+        super(ScarletWoman, self).__init__()
+        self.true_role = "猩红女郎"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_minion = True
+        self.is_bad_guy = True
+
+    def passive_skill_other_nights(self, alive_list):
+        imp = [i for i in self.players_list if i.true_role == "小恶魔"][0]
+        if not imp.is_alive:
+            self.role_for_register = "小恶魔"
+
+
 class Baron(Role):
     """
     男爵
@@ -850,12 +874,12 @@ class Imp(Role):
 role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
              RavenKeeper(), Butler(), Drunkard(), Hermit(), Poisoner(), Spy(), Baron(), Imp()]
 # 村民角色
-# 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
-# 送葬者 grave digger, 僧侣 monk, 养鸦人 crow raiser, 处女 virgin, 杀手 killer, 军人 soldier, 市长 mayor
+# 洗衣妇 Washerwoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empath, 占卜师 Soothsayer,
+# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 圣女 Virgin, 杀手 slayer, 军人 soldier, 市长 mayor
 villager_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
-                 RavenKeeper()]
+                 RavenKeeper(), Virgin()]
 # 外来人角色
-# 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣人 Saint
+# 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣徒 Saint
 outlander_list = [Butler(), Drunkard(), Hermit()]
 # 爪牙角色
 # 投毒者 poisoner, 间谍 spy, 猩红女郎 Scarlet Woman, 男爵 Baron
