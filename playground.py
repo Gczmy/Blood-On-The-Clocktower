@@ -53,7 +53,7 @@ def main(players_num):
             print_to_all("现在是白天")
             storyteller.check_kill_in_daytime()
             print_to_all(f"目前还存活的玩家编号为：{[i.player_index for i in players_list if i.is_alive]}")
-            storyteller.vote_to_execute()
+            storyteller.nomination()
         good_guys_win, bad_guys_win = storyteller.check_win()
     if good_guys_win:
         print_to_all("游戏结束！恭喜好人阵营获得胜利！")

@@ -10,12 +10,12 @@ from botc.core.print import print_to_prompt
 
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
-# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 处女 virgin, 杀手 killer, 军人 soldier, 市长 mayor
-Villagers = ["洗衣妇", "图书管理员", "调查员", "厨师", "共情者", "占卜师", "掘墓人", "僧侣", "养鸦人", "处女", "杀手",
-             "军人", "市长"]
+# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 圣女 virgin, 杀手 slayer, 士兵 soldier, 市长 mayor
+Villagers = ["洗衣妇", "图书管理员", "调查员", "厨师", "共情者", "占卜师", "掘墓人", "僧侣", "养鸦人", "圣女", "杀手",
+             "士兵", "市长"]
 # 外来人角色
-# 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣人 Saint
-Outlanders = ["管家", "酒鬼", "隐士", "圣人"]
+# 管家 butler , 酒鬼 Drunkard, 隐士 Hermit, 圣徒 Saint
+Outlanders = ["管家", "酒鬼", "隐士", "圣徒"]
 # 爪牙角色
 # 投毒者 poisoner, 间谍 spy, 猩红女郎 Scarlet Woman, 男爵 Baron
 Minions = ["投毒者", "间谍", "猩红女郎", "男爵"]
@@ -69,7 +69,7 @@ class Role:
         self.is_good_guy = False
         self.is_bad_guy = False
 
-        self.player_to_execute = 0
+        self.vote_or_not = None
 
     @property
     def player_index(self):
@@ -93,23 +93,41 @@ class Role:
     def poisoned(self):
         self.toxic = True
 
-    def vote_input(self, current_role, string):
+    def nominate_input(self, string):
         player_index_list = [i.player_index for i in self.players_list]
         player_input = None
         while not isinstance(player_input, int) or not (player_input in player_index_list or player_input == 0):
             try:
                 player_input = int(input(string + str(player_index_list)))
                 if player_input < 0 or player_input > len(player_index_list):
-                    print_to_role(current_role, f"请输入玩家编号{player_index_list},或输入 0 弃票。")
+                    print_to_role(self.true_role, f"请输入玩家编号{player_index_list},或输入 0 放弃提名。")
             except ValueError:
-                print_to_role(current_role, f"请输入玩家编号{player_index_list},或输入 0 弃票。")
+                print_to_role(self.true_role, f"请输入玩家编号{player_index_list},或输入 0 放弃提名。")
+        return player_input
+
+    def nominate(self):
+        player_nominated = self.nominate_input(f"你是 玩家{self.player_index} {self.role_for_self}, "
+                                               f"请输入玩家编号以提名一位玩家(输入 0 视为放弃提名)：")
+        if player_nominated != 0:
+            storyteller.player_nominated = [i for i in self.players_list if i.player_index == player_nominated][0]
+
+    def vote_input(self, current_role, string):
+        player_input = None
+        while not isinstance(player_input, int):
+            try:
+                player_input = int(input(string))
+                if player_input != 0 and player_input != 1:
+                    print_to_role(current_role, f"请输入 1 提名投票,或输入 0 不予投票。")
+            except ValueError:
+                print_to_role(current_role, f"请输入 1 提名投票,或输入 0 不予投票。")
         return player_input
 
     def vote(self):
-        self.player_to_execute = self.vote_input(self.true_role, f"你是{self.player_index} {self.role_for_register}, "
-                                                                 f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
+        self.vote_or_not = self.vote_input(self.true_role, f"你是{self.player_index} {self.role_for_register}, "
+                                                           f"现在对 玩家{storyteller.player_nominated.player_index} "
+                                                           f"进行提名投票, 请输入 1 提名投票,或输入 0 不予投票。")
 
-        if self.player_to_execute == 0:
+        if self.vote_or_not == 0:
             # 玩家弃票
             backend.info.append(f"玩家{self.player_index} 选择弃票")
             print_to_all(f"玩家{self.player_index} 选择弃票")
@@ -118,12 +136,12 @@ class Role:
             for player in self.players_list:
                 if player.true_role == "管家":
                     if self.true_role == storyteller.butler_to_follow.true_role:
-                        player.master_has_voted = self.player_to_execute
-            storyteller.player_vote_list.append(self.player_to_execute)
-            print_to_all(f"玩家{self.player_index} 选择投票给 玩家{self.player_to_execute}")
-            player_to_execute = [i for i in self.players_list if i.player_index == self.player_to_execute][0]
+                        player.master_has_voted = self.vote_or_not
+            storyteller.nominate_votes += 1
+            print_to_all(f"玩家{self.player_index} 选择对 玩家{storyteller.player_nominated.player_index} 的提名进行投票")
             backend.info.append(
-                f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+                f"玩家{self.player_index} {self.true_role} 选择对"
+                f" 玩家{storyteller.player_nominated.player_index} {storyteller.player_nominated.true_role}的提名进行投票")
 
     def passive_skill_before_game(self):
         pass
@@ -390,7 +408,6 @@ class Soothsayer(Role):
         rand_player = choice(players)
         backend.info.append(
             f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
-        # self.info = f"你认为 玩家{rand_player.player_index} 是小恶魔。"
         self.think_imp = rand_player
 
     def skill_every_night(self, alive_list):
@@ -490,7 +507,7 @@ class RavenKeeper(Role):
         self.true_role = "养鸦人"
         self.role_for_register = self.true_role
         self.role_for_self = self.true_role
-        self.is_outlander = True
+        self.is_villager = True
         self.is_good_guy = True
 
         self.killed_by_imp = False
@@ -509,6 +526,33 @@ class RavenKeeper(Role):
                 backend.info.append(
                     f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份是 {player.role_for_register}。")
                 self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {player.role_for_register}"
+
+
+class Virgin(Role):
+    """
+    圣女
+    圣女首次被提名时，若提名者身份为村民，则该村民立即被处决。
+    """
+
+    def __init__(self):
+        super(Virgin, self).__init__()
+        self.true_role = "圣女"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
+
+        # 圣女技能在storyteller.nomination()中被处理
+
+
+class Slayer(Role):
+    def __init__(self):
+        super(Slayer, self).__init__()
+        self.true_role = "杀手"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
 
 class Butler(Role):
@@ -530,19 +574,21 @@ class Butler(Role):
 
     def vote(self):
         if self.toxic:
-            player_to_execute = self.vote_input(self.true_role,
-                                                f"你是{self.player_index} {self.role_for_register}, "
-                                                f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
-            if player_to_execute == 0:
+            self.vote_or_not = self.vote_input(self.true_role,
+                                               f"你是{self.player_index} {self.role_for_register}, "
+                                               f"现在对 玩家{storyteller.player_nominated.player_index} "
+                                               f"进行提名投票, 请输入 1 提名投票,或输入 0 不予投票。")
+            if self.vote_or_not == 0:
                 # 玩家弃票
                 backend.info.append(f"玩家{self.player_index} 选择弃票")
                 print_to_all(f"玩家{self.player_index} 选择弃票")
             else:
-                storyteller.player_vote_list.append(player_to_execute)
-                print_to_all(f"玩家{self.player_index} 选择投票给 玩家{player_to_execute}")
-                player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
+                storyteller.nominate_votes += 1
+                print_to_all(f"玩家{self.player_index} 选择投票对 玩家{storyteller.player_nominated.player_index} "
+                             f"的提名进行投票")
                 backend.info.append(
-                    f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+                    f"玩家{self.player_index} {self.true_role} 选择投票对 玩家{storyteller.player_nominated.player_index} "
+                    f"{storyteller.player_nominated.true_role} 的提名进行投票")
         else:
             if self.master_has_voted is not None:
                 # 主人投了票
@@ -554,7 +600,7 @@ class Butler(Role):
                     backend.info.append(f"玩家{self.player_index} 选择弃票")
                     print_to_all(f"玩家{self.player_index} 选择弃票")
                 else:
-                    storyteller.player_vote_list.append(player_to_execute)
+                    storyteller.nominate_votes += 1
                     print_to_all(f"玩家{self.player_index} 选择投票给 玩家{player_to_execute}")
                     player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
                     backend.info.append(

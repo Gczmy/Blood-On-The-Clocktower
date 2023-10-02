@@ -13,23 +13,25 @@ class Storyteller:
         self.butler_to_follow = None
         self.monk_to_protect = None
         self.imp_to_kill = None
-        self.player_to_vote = None
+        self.nominate_votes = 0
         self.execute_player = None
         self.killed_last_night = None
-        self.player_vote_list = []
+        self.nominate_list = []
+        self.votes_list = []
+        self.player_nominated = None
 
     def check_kill_in_night(self):
         if self.imp_to_kill is not None:
-            if self.imp_to_kill.true_role == "小恶魔":
-                # ToDo 小恶魔选择杀死自己
-                pass
-            elif self.monk_to_protect != self.imp_to_kill:
+            if self.monk_to_protect != self.imp_to_kill:
                 # 小恶魔选择杀死的人和僧侣选择保护的人不是同一个人, 则被小恶魔选择杀死的人死亡
                 self.imp_to_kill.dead()
                 if self.imp_to_kill.true_role == "养鸦人":
                     self.imp_to_kill.killed_by_imp = True
                 self.killed_last_night = self.imp_to_kill
                 backend.info.append(f"玩家{self.imp_to_kill.player_index} {self.imp_to_kill.true_role} 被小恶魔杀死。")
+                if self.imp_to_kill.true_role == "小恶魔":
+                    # ToDo 小恶魔选择杀死自己
+                    pass
             self.imp_to_kill = None
             self.monk_to_protect = None
 
@@ -40,25 +42,28 @@ class Storyteller:
             print_to_all(f"昨晚 玩家{self.killed_last_night.player_index} 死亡。")
         self.killed_last_night = None
 
-    def __check_butler_follow(self, alive_list):
-        alive_role_list = [i.true_role for i in alive_list]
-        master_role = None
-        master_has_voted = None
-        butler_index = None
-        for i in self.players_list:
-            if i.true_role == "管家":
-                butler_index = i.player_index
-        if self.butler_to_follow is not None:
-            master_role = self.butler_to_follow.true_role  # 主人的身份
-            master_has_voted = None
-            if self.players_list[butler_index].is_alive:
-                # 如果管家活着，将管家放到列表的最后，确保管家在主人之后投票
-                alive_role_list.remove("管家")
-                alive_role_list.append("管家")
-        return alive_role_list, butler_index, master_role, master_has_voted
+    def nomination(self):
+        print_to_all("提名开始")
+        alive_list = [i for i in self.players_list if i.is_alive]
+        for player in alive_list:
+            player.nominate()
+            if self.player_nominated is not None:
+                print_to_all(f"玩家{player.player_index} 提名了 玩家{self.player_nominated.player_index}。")
+                print_to_backend(f"玩家{player.player_index} {player.true_role} 提名了 玩家{self.player_nominated.player_index} {self.player_nominated.true_role}。")
+                if self.player_nominated.true_role == "圣女":
+                    # 圣女首次被提名时，若提名者身份为村民，则该村民立即被处决, 且白天结束。 todo
+                    if player.is_villager:
+                        player.dead()
+                        print_to_all(f"玩家{player.player_index} 被处决，白天结束。")
+                        print_to_backend(f"玩家{player.player_index} {player.true_role} 由于圣女技能触发被处决，白天结束。")
+                        break
+                # 对该提名进行投票
+                self.vote_to_execute()
+                self.player_nominated = None
+        self.check_votes()
 
     def vote_to_execute(self):
-        print("投票开始")
+        print_to_all(f"对提名 玩家{self.player_nominated.player_index} 的投票开始。")
         alive_list = [i for i in self.players_list if i.is_alive]
         butler = None
         for player in alive_list:
@@ -69,36 +74,45 @@ class Storyteller:
             player.vote()
         if butler is not None:
             butler.vote()
+        print_to_all(f"对提名 玩家{self.player_nominated.player_index} 的投票结束。")
+        self.nominate_list.append(self.player_nominated)
+        self.votes_list.append(self.nominate_votes)
+
+    def check_votes(self):
         # 唱票
-        print_to_all("投票结束")
-        vote_counts = Counter(self.player_vote_list)
-        most_common_vote = vote_counts.most_common(1)
-        if len(vote_counts.values()) > 1:
-            most_common_vote = vote_counts.most_common(2)
-            if most_common_vote[0][1] == most_common_vote[1][1]:
-                backend.info.append(f"玩家平票，没有玩家被处决")
-                print_to_all(f"玩家平票，没有玩家被处决")
-                execute_player = None
+        vote_counts = Counter(self.votes_list)
+        if self.votes_list:
+            m1 = max(self.votes_list)
+            if m1 == 0:
+                backend.info.append(f"所有玩家弃票，没有玩家被处决")
+                print_to_all(f"所有玩家弃票，没有玩家被处决")
             else:
-                execute_player = most_common_vote[0][0]
-                print_to_all(f"玩家{execute_player} 票数最多，被处决")
-                execute_player = [i for i in self.players_list if i.player_index == execute_player][0]
-                backend.info.append(f"玩家{execute_player.player_index} {execute_player.true_role} 票数最多，被处决")
-                execute_player.dead()
-        elif not most_common_vote:
-            backend.info.append(f"所有玩家弃票，没有玩家被处决")
-            print_to_all(f"所有玩家弃票，没有玩家被处决")
-            execute_player = None
+                if len(self.votes_list) > 1:
+                    # 如果被提名的不止一个
+                    votes_list = self.votes_list.copy()
+                    votes_list.remove(m1)
+                    m2 = max(votes_list)
+                    if m1 == m2:
+                        backend.info.append(f"玩家平票，没有玩家被处决")
+                        print_to_all(f"玩家平票，没有玩家被处决")
+                    else:
+                        execute_player = self.nominate_list[self.votes_list.index(m1)]
+                        print_to_all(f"玩家{execute_player.player_index} 票数最多，被处决")
+                        backend.info.append(f"玩家{execute_player.player_index} {execute_player.true_role} 票数最多，被处决")
+                        execute_player.dead()
+                else:
+                    execute_player = self.nominate_list[self.votes_list.index(m1)]
+                    print_to_all(f"玩家{execute_player.player_index} 票数最多，被处决")
+                    backend.info.append(f"玩家{execute_player.player_index} {execute_player.true_role} 票数最多，被处决")
+                    execute_player.dead()
         else:
-            execute_player = most_common_vote[0][0]
-            print_to_all(f"玩家{execute_player} 票数最多，被处决")
-            execute_player = [i for i in self.players_list if i.player_index == execute_player][0]
-            backend.info.append(f"玩家{execute_player.player_index} {execute_player.true_role} 票数最多，被处决")
-            execute_player.dead()
+            backend.info.append(f"没有玩家被提名，没有玩家被处决")
+            print_to_all(f"没有玩家被提名，没有玩家被处决")
 
         # Todo:统计票数环节可以让玩家们退票，如果主人退票，管家也必须退票
-        self.player_vote_list = []
-        self.player_to_vote = None
+        self.nominate_list = []
+        self.votes_list = []
+        self.nominate_votes = 0
 
     def check_win(self):
         alive_in_game = [i for i in self.players_list if i.is_alive]
