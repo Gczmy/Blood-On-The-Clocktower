@@ -5,11 +5,11 @@ from botc.core.print import print_to_role
 from botc.core.print import clear_all_print_file
 from botc.core.print import print_to_prompt
 from botc.core.print import print_to_backend
+from botc.core.grimoire import grimoire
 
 
 class Storyteller:
     def __init__(self):
-        self.players_list = None
         self.butler_to_follow = None
         self.monk_to_protect = None
         self.imp_to_kill = None
@@ -52,7 +52,7 @@ class Storyteller:
 
     def nomination(self):
         print_to_all("提名开始")
-        alive_list = [i for i in self.players_list if i.is_alive]
+        alive_list = [i for i in grimoire.players_list if i.is_alive]
         for player in alive_list:
             player.nominate()
             if self.player_nominated is not None:
@@ -81,7 +81,7 @@ class Storyteller:
 
     def vote_to_execute(self):
         print_to_all(f"对提名 玩家{self.player_nominated.player_index} 的投票开始。")
-        alive_list = [i for i in self.players_list if i.is_alive]
+        alive_list = [i for i in grimoire.players_list if i.is_alive]
         butler = None
         for player in alive_list:
             if player.true_role == "管家":
@@ -132,8 +132,7 @@ class Storyteller:
         self.nominate_votes = 0
 
     def check_daytime_skill(self):
-        alive_list = [i for i in self.players_list if i.is_alive]
-        for player in self.players_list:
+        for player in grimoire.players_list:
             if player.true_role == "杀手":
                 string = f"你是 玩家{player.player_index} 杀手，你是否选择使用你的刺杀技能， 注意本局游戏你仅有一次刺杀机会(输入 1 使用技能，输入 0 不使用)："
                 use_skill = None
@@ -144,20 +143,20 @@ class Storyteller:
                             print_to_role(player.true_role, f"请输入 1 使用技能,或输入 0 不使用。")
                     except ValueError:
                         print_to_role(player.true_role, f"请输入 1 使用技能,或输入 0 不使用。")
-                player.skill_daytime(alive_list, use_skill)
+                player.skill(use_skill)
             if player.true_role == "猩红女郎":
-                player.passive_skill_other_nights(alive_list)
+                player.skill()
 
     def check_win(self):
-        alive_in_game = [i for i in self.players_list if i.is_alive]
-        alive_register_in_game = [i.role_for_register for i in self.players_list if i.is_alive]
+        alive_in_game = [i for i in grimoire.players_list if i.is_alive]
+        alive_register_in_game = [i.role_for_register for i in grimoire.players_list if i.is_alive]
         good_guys_win = False
         bad_guys_win = False
         # 场上不存在恶魔，且没有办法立即生成一个新的恶魔，即好人方获胜
         if "小恶魔" not in alive_register_in_game:
             good_guys_win = True
         # 如果好人方全部死亡，则恶魔方胜利。
-        alive_good_guys = [i for i in self.players_list if i.is_good_guy and i.is_alive]
+        alive_good_guys = [i for i in grimoire.players_list if i.is_good_guy and i.is_alive]
         if not alive_good_guys:
             bad_guys_win = True
         # 如只剩2名玩家，恶魔在场，则恶魔方直接胜利。

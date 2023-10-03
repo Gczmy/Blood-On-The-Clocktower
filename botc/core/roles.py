@@ -5,8 +5,10 @@ import botc.core.backend as backend
 from botc.core.storyteller import storyteller
 from botc.core.print import print_to_all
 from botc.core.print import print_to_role
+from botc.core.print import print_to_grimoire
 from botc.core.print import clear_all_print_file
 from botc.core.print import print_to_prompt
+from botc.core.grimoire import grimoire
 
 # 村民角色
 # 洗衣妇 WasherWoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empathiser, 占卜师 Soothsayer,
@@ -59,8 +61,6 @@ class Role:
         self.toxic = False
         self.info = ""
 
-        self.__players_list = None
-
         self.is_villager = False
         self.is_outlander = False
         self.is_minion = False
@@ -79,14 +79,6 @@ class Role:
     def player_index(self, index):
         self.__player_index = index
 
-    @property
-    def players_list(self):
-        return self.__players_list
-
-    @players_list.setter
-    def players_list(self, players_list):
-        self.__players_list = players_list
-
     def dead(self):
         self.is_alive = False
 
@@ -94,7 +86,7 @@ class Role:
         self.toxic = True
 
     def nominate_input(self, string):
-        player_index_list = [i.player_index for i in self.players_list]
+        player_index_list = [i.player_index for i in grimoire.players_list]
         player_input = None
         while not isinstance(player_input, int) or not (player_input in player_index_list or player_input == 0):
             try:
@@ -109,7 +101,7 @@ class Role:
         player_nominated = self.nominate_input(f"你是 玩家{self.player_index} {self.role_for_self}, "
                                                f"请输入玩家编号以提名一位玩家(输入 0 视为放弃提名)：")
         if player_nominated != 0:
-            storyteller.player_nominated = [i for i in self.players_list if i.player_index == player_nominated][0]
+            storyteller.player_nominated = [i for i in grimoire.players_list if i.player_index == player_nominated][0]
 
     def vote_input(self, current_role, string):
         player_input = None
@@ -129,42 +121,23 @@ class Role:
 
         if self.vote_or_not == 0:
             # 玩家弃票
-            backend.info.append(f"玩家{self.player_index} 选择弃票")
+            grimoire.backend_info.append(f"玩家{self.player_index} 选择弃票")
             print_to_all(f"玩家{self.player_index} 选择弃票")
         else:
             # 玩家投了票
-            for player in self.players_list:
+            for player in grimoire.players_list:
                 if player.true_role == "管家":
                     if self.true_role == storyteller.butler_to_follow.true_role:
                         player.master_has_voted = self.vote_or_not
             storyteller.nominate_votes += 1
             print_to_all(f"玩家{self.player_index} 选择对 玩家{storyteller.player_nominated.player_index} 的提名进行投票")
-            backend.info.append(
+            grimoire.backend_info.append(
                 f"玩家{self.player_index} {self.true_role} 选择对"
                 f" 玩家{storyteller.player_nominated.player_index} {storyteller.player_nominated.true_role}的提名进行投票")
+            print_to_grimoire(grimoire.backend_info[-1])
 
-    def passive_skill_before_game(self):
-        pass
 
-    def passive_skill_first_night(self):
-        pass
-
-    def passive_skill_other_nights(self, alive_list):
-        pass
-
-    def passive_skill_every_night(self, alive_list):
-        pass
-
-    def skill_before_game(self):
-        pass
-
-    def skill_first_night(self):
-        pass
-
-    def skill_other_nights(self, alive_list):
-        pass
-
-    def skill_every_night(self, alive_list):
+    def skill(self):
         pass
 
 
@@ -183,32 +156,35 @@ class Washerwoman(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def passive_skill_first_night(self):
-        player_list = self.players_list
-        if self.toxic:
-            # 在所有村民(除洗衣妇自身)中随机选择一个身份
-            villagers_in_game = [i for i in Villagers if i != "洗衣妇"]
-            rand_villager = choice(villagers_in_game)
-            # 随机选择两个玩家
-            rand_players = sample(player_list, 2)
-            backend.info.append(
-                f"玩家{self.player_index} 洗衣妇 知道了 {rand_villager} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
-            self.info = f"{rand_villager} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
-        else:
-            # 找出本局所有村民(除洗衣妇自身)并在其中随机选择一个身份(注意使用登记身份)
-            villagers_in_game = [i for i in player_list if
-                                 i.is_alive and i.role_for_register in Villagers and i.role_for_register != "洗衣妇"]
-            villager = choice(villagers_in_game)
-            # 再随机选择一个玩家
-            player_list_new = [i for i in player_list if i != villager]
-            rand_player = choice(player_list)
-            backend.info.append(
-                f"玩家{self.player_index} 洗衣妇 知道了 {villager.role_for_register} 在 玩家{rand_player.player_index} {rand_player.true_role} 和 玩家{villager.player_index} {villager.true_role} 中。")
-            # 打乱身份顺序
-            if random.randint(0, 1):
-                self.info = f"{villager.role_for_register} 在 玩家{rand_player.player_index} 和 玩家{villager.player_index} 中。"
+    def skill(self):
+        if grimoire.is_night and grimoire.is_first_night:
+            player_list = grimoire.players_list
+            if self.toxic:
+                # 在所有村民(除洗衣妇自身)中随机选择一个身份
+                villagers_in_game = [i for i in Villagers if i != "洗衣妇"]
+                rand_villager = choice(villagers_in_game)
+                # 随机选择两个玩家
+                rand_players = sample(player_list, 2)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 洗衣妇 知道了 {rand_villager} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"{rand_villager} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
             else:
-                self.info = f"{villager.role_for_register} 在 玩家{villager.player_index} 和 玩家{rand_player.player_index} 中。"
+                # 找出本局所有村民(除洗衣妇自身)并在其中随机选择一个身份(注意使用登记身份)
+                villagers_in_game = [i for i in player_list if
+                                     i.is_alive and i.role_for_register in Villagers and i.role_for_register != "洗衣妇"]
+                villager = choice(villagers_in_game)
+                # 再随机选择一个玩家
+                player_list_new = [i for i in player_list if i != villager]
+                rand_player = choice(player_list)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 洗衣妇 知道了 {villager.role_for_register} 在 玩家{rand_player.player_index} {rand_player.true_role} 和 玩家{villager.player_index} {villager.true_role} 中。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                # 打乱身份顺序
+                if random.randint(0, 1):
+                    self.info = f"{villager.role_for_register} 在 玩家{rand_player.player_index} 和 玩家{villager.player_index} 中。"
+                else:
+                    self.info = f"{villager.role_for_register} 在 玩家{villager.player_index} 和 玩家{rand_player.player_index} 中。"
 
 
 class Librarian(Role):
@@ -226,36 +202,40 @@ class Librarian(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def passive_skill_first_night(self):
-        player_list = self.players_list
-        if self.toxic:
-            # 在所有外乡人中随机选择一个身份
-            outlander = choice(Outlanders)
-            # 随机选择两个玩家
-            rand_players = sample(player_list, 2)
-            backend.info.append(
-                f"玩家{self.player_index} 图书管理员 知道了 {outlander} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
-            self.info = f"{outlander} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
-        else:
-            # 找出本局所有外乡人(注意使用登记身份)
-            outlanders_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Outlanders]
-            # 如果本局游戏没有外乡人
-            if not outlanders_in_game:
-                backend.info.append(f"玩家{self.player_index} 图书管理员 知道了本局游戏没有外乡人。")
-                self.info = "本局游戏没有外乡人。"
-            # 如果本局游戏有外乡人，则随机选择一个外乡人身份牌
+    def skill(self):
+        if grimoire.is_night and grimoire.is_first_night:
+            player_list = grimoire.players_list
+            if self.toxic:
+                # 在所有外乡人中随机选择一个身份
+                outlander = choice(Outlanders)
+                # 随机选择两个玩家
+                rand_players = sample(player_list, 2)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 图书管理员 知道了 {outlander} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"{outlander} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
             else:
-                outlander = choice(outlanders_in_game)
-                # 再随机选择一个角色
-                player_list_new = [i for i in player_list if i.true_role != outlander]
-                rand_player = choice(player_list_new)
-                backend.info.append(
-                    f"玩家{self.player_index} 图书管理员 知道了 {outlander.true_role} 在 玩家{rand_player.player_index} {rand_player.true_role} 和 玩家{outlander.player_index} {outlander.true_role}中。")
-                # 打乱身份顺序
-                if random.randint(0, 1):
-                    self.info = f"{outlander.true_role} 在 玩家{outlander.player_index} 和 玩家{rand_player.player_index} 中。"
+                # 找出本局所有外乡人(注意使用登记身份)
+                outlanders_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Outlanders]
+                # 如果本局游戏没有外乡人
+                if not outlanders_in_game:
+                    grimoire.backend_info.append(f"玩家{self.player_index} 图书管理员 知道了本局游戏没有外乡人。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    self.info = "本局游戏没有外乡人。"
+                # 如果本局游戏有外乡人，则随机选择一个外乡人身份牌
                 else:
-                    self.info = f"{outlander.true_role} 在 玩家{rand_player.player_index} 和 玩家{outlander.player_index} 中。"
+                    outlander = choice(outlanders_in_game)
+                    # 再随机选择一个角色
+                    player_list_new = [i for i in player_list if i.true_role != outlander]
+                    rand_player = choice(player_list_new)
+                    grimoire.backend_info.append(
+                        f"玩家{self.player_index} 图书管理员 知道了 {outlander.true_role} 在 玩家{rand_player.player_index} {rand_player.true_role} 和 玩家{outlander.player_index} {outlander.true_role}中。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    # 打乱身份顺序
+                    if random.randint(0, 1):
+                        self.info = f"{outlander.true_role} 在 玩家{outlander.player_index} 和 玩家{rand_player.player_index} 中。"
+                    else:
+                        self.info = f"{outlander.true_role} 在 玩家{rand_player.player_index} 和 玩家{outlander.player_index} 中。"
 
 
 class Investigator(Role):
@@ -273,31 +253,34 @@ class Investigator(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def passive_skill_first_night(self):
-        player_list = self.players_list
+    def skill(self):
+        if grimoire.is_night and grimoire.is_first_night:
+            player_list = grimoire.players_list
 
-        if self.toxic:
-            # 在所有爪牙中随机选择一个身份
-            minions = choice(Minions)
-            # 随机选择两个玩家
-            rand_players = sample(player_list, 2)
-            backend.info.append(
-                f"玩家{self.player_index} 调查员 知道了 {minions} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
-            self.info = f"{minions} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
-        else:
-            # 找出本局所有爪牙并在其中随机选择一个身份(注意使用登记身份)
-            minions_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Minions]
-            minions = choice(minions_in_game)
-            # 再随机选择一个角色
-            player_list_new = [i for i in player_list if i.true_role != minions]
-            rand_player = choice(player_list_new)
-            backend.info.append(
-                f"玩家{self.player_index} 调查员 知道了 {minions.true_role} 在 玩家{minions.player_index} {minions.true_role} 和 玩家{rand_player.player_index} {rand_player.true_role} 中。")
-            # 打乱身份顺序
-            if random.randint(0, 1):
-                self.info = f"{minions.true_role} 在 玩家{minions.player_index} 和 玩家{rand_player.player_index} 中。"
+            if self.toxic:
+                # 在所有爪牙中随机选择一个身份
+                minions = choice(Minions)
+                # 随机选择两个玩家
+                rand_players = sample(player_list, 2)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 调查员 知道了 {minions} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"{minions} 在 玩家{rand_players[0].player_index} 和 玩家{rand_players[1].player_index} 中。"
             else:
-                self.info = f"{minions.true_role} 在 玩家{rand_player.player_index} 和 玩家{minions.player_index} 中。"
+                # 找出本局所有爪牙并在其中随机选择一个身份(注意使用登记身份)
+                minions_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Minions]
+                minions = choice(minions_in_game)
+                # 再随机选择一个角色
+                player_list_new = [i for i in player_list if i.true_role != minions]
+                rand_player = choice(player_list_new)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 调查员 知道了 {minions.true_role} 在 玩家{minions.player_index} {minions.true_role} 和 玩家{rand_player.player_index} {rand_player.true_role} 中。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                # 打乱身份顺序
+                if random.randint(0, 1):
+                    self.info = f"{minions.true_role} 在 玩家{minions.player_index} 和 玩家{rand_player.player_index} 中。"
+                else:
+                    self.info = f"{minions.true_role} 在 玩家{rand_player.player_index} 和 玩家{minions.player_index} 中。"
 
 
 class Cook(Role):
@@ -315,31 +298,34 @@ class Cook(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def passive_skill_first_night(self):
-        player_list = self.players_list
-        # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
-        bad_guys_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Bad_guys]
-        # 得到本局所有邪恶阵营玩家编号
-        bad_guys_player_index = [i.player_index for i in bad_guys_in_game]
-        # 获取相邻数
-        # 遍历列表中的元素，检查每个元素是否满足相邻数的条件
-        result = 0
-        for num in bad_guys_player_index:
-            if num == len(player_list) and 1 in bad_guys_player_index:
-                result += 1
-            if num + 1 in bad_guys_player_index:
-                result += 1
+    def skill(self):
+        if grimoire.is_night and grimoire.is_first_night:
+            player_list = grimoire.players_list
+            # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
+            bad_guys_in_game = [i for i in player_list if i.is_alive and i.role_for_register in Bad_guys]
+            # 得到本局所有邪恶阵营玩家编号
+            bad_guys_player_index = [i.player_index for i in bad_guys_in_game]
+            # 获取相邻数
+            # 遍历列表中的元素，检查每个元素是否满足相邻数的条件
+            result = 0
+            for num in bad_guys_player_index:
+                if num == len(player_list) and 1 in bad_guys_player_index:
+                    result += 1
+                if num + 1 in bad_guys_player_index:
+                    result += 1
 
-        if self.toxic:
-            result_ = random.randint(0, 3)
-            while result_ == result:
+            if self.toxic:
                 result_ = random.randint(0, 3)
-            backend.info.append(
-                f"玩家{self.player_index} 厨师 知道了有 {str(result_)} 对邪恶阵营玩家座位相邻。但是他中毒了，因此得到的是错误信息。")
-            self.info = "有 " + str(result_) + " 对邪恶阵营玩家座位相邻。"
-        else:
-            backend.info.append(f"玩家{self.player_index} 厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。")
-            self.info = "有 " + str(result) + " 对邪恶阵营玩家座位相邻。"
+                while result_ == result:
+                    result_ = random.randint(0, 3)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 厨师 知道了有 {str(result_)} 对邪恶阵营玩家座位相邻。但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = "有 " + str(result_) + " 对邪恶阵营玩家座位相邻。"
+            else:
+                grimoire.backend_info.append(f"玩家{self.player_index} 厨师 知道了有 {str(result)} 对邪恶阵营玩家座位相邻。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = "有 " + str(result) + " 对邪恶阵营玩家座位相邻。"
 
 
 class Empath(Role):
@@ -357,33 +343,37 @@ class Empath(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_every_night(self, alive_list):
-        # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
-        bad_guys_in_game = [i for i in alive_list if i.is_alive and i.role_for_register in Bad_guys]
-        # 得到本局所有邪恶阵营玩家编号
-        bad_guys_player_index = [i.player_index for i in bad_guys_in_game]
-        # 计算与自己相邻的2位存活玩家（不包括死亡玩家）有几位属于邪恶阵营
-        result = 0
-        if self.player_index == len(alive_list) and 1 in bad_guys_player_index:
-            result += 1
-        if self.player_index == 1 and len(alive_list) in bad_guys_player_index:
-            result += 1
-        if self.player_index + 1 in bad_guys_player_index:
-            result += 1
-        if self.player_index - 1 in bad_guys_player_index:
-            result += 1
+    def skill(self):
+        alive_list = grimoire.alive_list
+        if grimoire.is_night:
+            # 找出目前存活的邪恶阵营玩家(注意使用登记身份)
+            bad_guys_in_game = [i for i in alive_list if i.is_alive and i.role_for_register in Bad_guys]
+            # 得到本局所有邪恶阵营玩家编号
+            bad_guys_player_index = [i.player_index for i in bad_guys_in_game]
+            # 计算与自己相邻的2位存活玩家（不包括死亡玩家）有几位属于邪恶阵营
+            result = 0
+            if self.player_index == len(alive_list) and 1 in bad_guys_player_index:
+                result += 1
+            if self.player_index == 1 and len(alive_list) in bad_guys_player_index:
+                result += 1
+            if self.player_index + 1 in bad_guys_player_index:
+                result += 1
+            if self.player_index - 1 in bad_guys_player_index:
+                result += 1
 
-        if self.toxic:
-            result_ = random.randint(0, 2)
-            while result_ == result:
+            if self.toxic:
                 result_ = random.randint(0, 2)
-            backend.info.append(
-                f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。但是他中毒了，因此得到的是错误信息。")
-            self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。"
-        else:
-            backend.info.append(
-                f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。")
-            self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
+                while result_ == result:
+                    result_ = random.randint(0, 2)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result_)} 位属于邪恶阵营。"
+            else:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 共情者 知道了与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"与自己相邻的2位存活玩家（不包括死亡玩家）有 {str(result)} 位属于邪恶阵营。"
 
 
 class Soothsayer(Role):
@@ -402,37 +392,42 @@ class Soothsayer(Role):
         self.is_good_guy = True
         self.think_imp = None
 
-    def passive_skill_first_night(self):
-        # 游戏开始时，会有一名随机玩家（无论身份）被占卜师视为恶魔直到游戏结束，占卜师不知道其真实身份。
-        players = [i for i in self.players_list if i.true_role != "占卜师"]
-        rand_player = choice(players)
-        backend.info.append(
-            f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
-        self.think_imp = rand_player
+    def skill(self):
+        if grimoire.is_night:
+            if grimoire.is_first_night:
+                # 游戏开始时，会有一名随机玩家（无论身份）被占卜师视为恶魔直到游戏结束，占卜师不知道其真实身份。
+                players = [i for i in grimoire.players_list if i.true_role != "占卜师"]
+                rand_player = choice(players)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 占卜师 认为 玩家{rand_player.player_index} {rand_player.true_role} 是小恶魔。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.think_imp = rand_player
 
-    def skill_every_night(self, alive_list):
-        # (注意使用登记身份)
-        string = f"你是 玩家{self.player_index} 占卜师，请输入你想占卜的第一位玩家编号："
-        player_1 = player_input(self.true_role, alive_list, string)
-        string = "请输入你想占卜的第二位玩家编号："
-        player_2 = player_input(self.true_role, alive_list, string)
-        if self.toxic:
-            if player_1.role_for_register in Demon or player_2.role_for_register in Demon:
-                result = " 中不存在恶魔身份。"
+            alive_list = grimoire.alive_list
+            # (注意使用登记身份)
+            string = f"你是 玩家{self.player_index} 占卜师，请输入你想占卜的第一位玩家编号："
+            player_1 = player_input(self.true_role, alive_list, string)
+            string = "请输入你想占卜的第二位玩家编号："
+            player_2 = player_input(self.true_role, alive_list, string)
+            if self.toxic:
+                if player_1.role_for_register in Demon or player_2.role_for_register in Demon:
+                    result = " 中不存在恶魔身份。"
+                else:
+                    result = " 中存在恶魔身份。"
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result + "但是他中毒了，因此得到的是错误信息。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
             else:
-                result = " 中存在恶魔身份。"
-            backend.info.append(
-                f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result + "但是他中毒了，因此得到的是错误信息。")
-            self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
-        else:
-            if player_1.role_for_register in Demon or player_2.role_for_register in Demon \
-                    or self.think_imp.true_role == player_1.true_role or self.think_imp.true_role == player_2.true_role:
-                result = " 中存在恶魔身份。"
-            else:
-                result = " 中不存在恶魔身份。"
-            backend.info.append(
-                f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result)
-            self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
+                if player_1.role_for_register in Demon or player_2.role_for_register in Demon \
+                        or self.think_imp.true_role == player_1.true_role or self.think_imp.true_role == player_2.true_role:
+                    result = " 中存在恶魔身份。"
+                else:
+                    result = " 中不存在恶魔身份。"
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 占卜师 知道了 玩家{player_1.player_index} {player_1.true_role} 和 玩家{player_2.player_index} {player_2.true_role}" + result)
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"玩家{player_1.player_index} 和 玩家{player_2.player_index}{result}"
 
 
 class GraveDigger(Role):
@@ -450,21 +445,24 @@ class GraveDigger(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_other_nights(self, alive_list):
-        player_list = self.players_list
-        if storyteller.execute_player is not None:
-            # (注意使用登记身份)
-            if self.toxic:
-                rand_player = choice(player_list)
-                backend.info.append(
-                    f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {rand_player.role_for_register}。但是他中毒了，因此得到的是错误信息。")
-                self.info = "白天被处决的玩家身份是 " + rand_player.role_for_register
+    def skill(self):
+        if grimoire.is_night and not grimoire.is_first_night:
+            player_list = grimoire.players_list
+            if storyteller.execute_player is not None:
+                # (注意使用登记身份)
+                if self.toxic:
+                    rand_player = choice(player_list)
+                    grimoire.backend_info.append(
+                        f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {rand_player.role_for_register}。但是他中毒了，因此得到的是错误信息。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    self.info = "白天被处决的玩家身份是 " + rand_player.role_for_register
+                else:
+                    grimoire.backend_info.append(
+                        f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {storyteller.execute_player.role_for_register}。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    self.info = "白天被处决的玩家身份是 " + storyteller.execute_player.role_for_register
             else:
-                backend.info.append(
-                    f"玩家{self.player_index} 掘墓人 知道了当天被处决的玩家身份是 {storyteller.execute_player.role_for_register}。")
-                self.info = "白天被处决的玩家身份是 " + storyteller.execute_player.role_for_register
-        else:
-            self.info = "白天没有人被处决"
+                self.info = "白天没有人被处决"
 
 
 class Monk(Role):
@@ -482,17 +480,21 @@ class Monk(Role):
         self.is_villager = True
         self.is_good_guy = True
 
-    def skill_other_nights(self, alive_list):
-        string = f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号："
-        storyteller.monk_to_protect = player_input(self.true_role, alive_list, string)
-        if self.toxic:
-            backend.info.append(
-                f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
-            storyteller.monk_to_protect = None
-        else:
-            backend.info.append(
-                f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}。")
-        self.info = f"你今晚保护的是 玩家{storyteller.monk_to_protect.player_index}"
+    def skill(self):
+        if grimoire.is_night and not grimoire.is_first_night:
+            alive_list = grimoire.alive_list
+            string = f"你是玩家{self.player_index} 僧侣，请输入你今晚想保护的玩家编号："
+            storyteller.monk_to_protect = player_input(self.true_role, alive_list, string)
+            if self.toxic:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}，但是由于他中毒了，因此技能未生效。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                storyteller.monk_to_protect = None
+            else:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 僧侣 选择保护 玩家{storyteller.monk_to_protect.player_index}。")
+                print_to_grimoire(grimoire.backend_info[-1])
+            self.info = f"你今晚保护的是 玩家{storyteller.monk_to_protect.player_index}"
 
 
 class RavenKeeper(Role):
@@ -512,20 +514,23 @@ class RavenKeeper(Role):
 
         self.killed_by_imp = False
 
-    def skill_other_nights(self, alive_list):
-        if not self.is_alive and self.killed_by_imp:
-            self.killed_by_imp = False  # 该技能仅生效一次
-            string = f"你是 玩家{self.player_index} 养鸦人，你在夜晚被恶魔杀死，你可以选择一名玩家并得知他的身份："
-            player = player_input(self.true_role, self.players_list, string)
-            if self.toxic:
-                rand_role = choice(self.players_list).role_for_register
-                backend.info.append(
-                    f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份 {rand_role}, 但是他中毒了，因此得到的是错误信息。")
-                self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {rand_role}"
-            else:
-                backend.info.append(
-                    f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份是 {player.role_for_register}。")
-                self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {player.role_for_register}"
+    def skill(self):
+        if grimoire.is_night and not grimoire.is_first_night:
+            if not self.is_alive and self.killed_by_imp:
+                self.killed_by_imp = False  # 该技能仅生效一次
+                string = f"你是 玩家{self.player_index} 养鸦人，你在夜晚被恶魔杀死，你可以选择一名玩家并得知他的身份："
+                player = player_input(self.true_role, grimoire.players_list, string)
+                if self.toxic:
+                    rand_role = choice(grimoire.players_list).role_for_register
+                    grimoire.backend_info.append(
+                        f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份 {rand_role}, 但是他中毒了，因此得到的是错误信息。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {rand_role}"
+                else:
+                    grimoire.backend_info.append(
+                        f"玩家{self.player_index} 养鸦人 选择查看 玩家{player.player_index} 的身份是 {player.role_for_register}。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+                    self.info = f"你今晚选择查看的 玩家{player.player_index} 的 身份是 {player.role_for_register}"
 
 
 class Virgin(Role):
@@ -560,27 +565,38 @@ class Slayer(Role):
         self.player_to_slay = None
         self.skill_has_been_used = False
 
-    def skill_daytime(self, alive_list, use_skill):
-        if use_skill and not self.skill_has_been_used:
-            self.skill_has_been_used = True
-            string = f"请输入你想刺杀的玩家编号："
-            self.player_to_slay = player_input(self.true_role, alive_list, string)
-            backend.info.append(f"玩家{self.player_index} 杀手 选择刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role}。")
-            if self.toxic:
-                backend.info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 时处于中毒状态，因此刺杀失败，无事发生。")
-                self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 失败，无事发生。"
-                print_to_role(self.true_role, self.info)
-            else:
-                if self.player_to_slay.role_for_register == "小恶魔":
-                    self.player_to_slay.is_alive = False
-                    backend.info.append(f"玩家{self.player_index} 杀手 刺杀成功，玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 已死亡。")
-                    print_to_all(f"玩家{self.player_index} 刺杀成功，玩家{self.player_to_slay.player_index} 已死亡。")
-                    self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 成功，玩家{self.player_to_slay.player_index}已死亡。"
-                    print_to_role(self.true_role, self.info)
-                else:
-                    backend.info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 失败，无事发生。")
+    def skill(self, use_skill):
+        if not grimoire.is_night:
+            alive_list = grimoire.alive_list
+            if use_skill and not self.skill_has_been_used:
+                self.skill_has_been_used = True
+                string = f"请输入你想刺杀的玩家编号："
+                self.player_to_slay = player_input(self.true_role, alive_list, string)
+                grimoire.backend_info.append(f"玩家{self.player_index} 杀手 选择刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role}。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                if self.toxic:
+                    grimoire.backend_info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 时处于中毒状态，因此刺杀失败，无事发生。")
+                    print_to_grimoire(grimoire.backend_info[-1])
                     self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 失败，无事发生。"
                     print_to_role(self.true_role, self.info)
+                else:
+                    if self.player_to_slay.role_for_register == "小恶魔":
+                        self.player_to_slay.is_alive = False
+                        grimoire.backend_info.append(f"玩家{self.player_index} 杀手 刺杀成功，玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 已死亡。")
+                        print_to_grimoire(grimoire.backend_info[-1])
+                        print_to_all(f"玩家{self.player_index} 刺杀成功，玩家{self.player_to_slay.player_index} 已死亡。")
+                        self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 成功，玩家{self.player_to_slay.player_index}已死亡。"
+                        print_to_role(self.true_role, self.info)
+
+                        alive_list = [i for i in grimoire.players_list if i.is_alive]
+                        grimoire.alive_list = alive_list
+                        alive_index_list = [i.player_index for i in grimoire.alive_list]
+                        print_to_all(f"目前还存活的玩家编号为：{alive_index_list}")
+                    else:
+                        grimoire.backend_info.append(f"玩家{self.player_index} 杀手 刺杀 玩家{self.player_to_slay.player_index} {self.player_to_slay.true_role} 失败，无事发生。")
+                        print_to_grimoire(grimoire.backend_info[-1])
+                        self.info = f"你是 玩家{self.player_index} 杀手, 刺杀 玩家{self.player_to_slay.player_index} 失败，无事发生。"
+                        print_to_role(self.true_role, self.info)
 
 
 class Soldier(Role):
@@ -597,6 +613,21 @@ class Soldier(Role):
         self.is_villager = True
         self.is_good_guy = True
         # 士兵技能在storyteller.check_kill_in_night()中触发。
+
+
+class Mayor(Role):
+    """
+    市长
+    若只有3名玩家存活且没有玩家被处决，则市长所属阵营获胜；若市长在夜晚被杀，可能会由另一名玩家代替市长死亡。
+    """
+
+    def __init__(self):
+        super(Mayor, self).__init__()
+        self.true_role = "士兵"
+        self.role_for_register = self.true_role
+        self.role_for_self = self.true_role
+        self.is_villager = True
+        self.is_good_guy = True
 
 
 class Butler(Role):
@@ -624,15 +655,16 @@ class Butler(Role):
                                                f"进行提名投票, 请输入 1 提名投票,或输入 0 不予投票。")
             if self.vote_or_not == 0:
                 # 玩家弃票
-                backend.info.append(f"玩家{self.player_index} 选择弃票")
+                # grimoire.backend_info.append(f"玩家{self.player_index} 选择弃票")
                 print_to_all(f"玩家{self.player_index} 选择弃票")
             else:
                 storyteller.nominate_votes += 1
                 print_to_all(f"玩家{self.player_index} 选择投票对 玩家{storyteller.player_nominated.player_index} "
                              f"的提名进行投票")
-                backend.info.append(
+                grimoire.backend_info.append(
                     f"玩家{self.player_index} {self.true_role} 选择投票对 玩家{storyteller.player_nominated.player_index} "
                     f"{storyteller.player_nominated.true_role} 的提名进行投票")
+                print_to_grimoire(grimoire.backend_info[-1])
         else:
             if self.master_has_voted is not None:
                 # 主人投了票
@@ -641,34 +673,40 @@ class Butler(Role):
                                                     f"请输入玩家编号以投票处决一位玩家(输入 0 视为弃票)：")
                 if player_to_execute == 0:
                     # 玩家弃票
-                    backend.info.append(f"玩家{self.player_index} 选择弃票")
+                    # grimoire.backend_info.append(f"玩家{self.player_index} 选择弃票")
                     print_to_all(f"玩家{self.player_index} 选择弃票")
                 else:
                     storyteller.nominate_votes += 1
                     print_to_all(f"玩家{self.player_index} 选择投票给 玩家{player_to_execute}")
                     player_to_execute = [i for i in self.players_list if i.player_index == player_to_execute][0]
-                    backend.info.append(
+                    grimoire.backend_info.append(
                         f"玩家{self.player_index} {self.true_role} 选择投票给 玩家{player_to_execute.player_index} {player_to_execute.true_role}")
+                    print_to_grimoire(grimoire.backend_info[-1])
             else:
                 # 主人没投票
-                backend.info.append(f"玩家{self.player_index} 选择弃票")
+                # grimoire.backend_info.append(f"玩家{self.player_index} 选择弃票")
                 print_to_all(f"玩家{self.player_index} 选择弃票")
-                backend.info.append(
+                grimoire.backend_info.append(
                     f"玩家{self.player_index} 管家, 由于昨晚他选择的主人弃票，因此他也无法投票，视为直接弃票")
+                print_to_grimoire(grimoire.backend_info[-1])
                 self.info = f"你是 玩家{self.player_index} 管家, 由于昨晚你选择的主人弃票，因此你也无法投票，视为直接弃票"
                 print_to_role(self.true_role, self.info)
 
-    def skill_every_night(self, alive_list):
-        string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
-                  f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
-        storyteller.butler_to_follow = player_input(self.true_role, alive_list, string)
-        self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.butler_to_follow.player_index}"
-        if self.toxic:
-            backend.info.append(
-                f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票，但是由于他中毒了，因此技能未生效。")
-        else:
-            backend.info.append(
-                f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票。")
+    def skill(self):
+        if grimoire.is_night:
+            alive_list = grimoire.alive_list
+            string = (f"你是 玩家{self.player_index} 管家，请输入你今晚选择的明天要跟随的投票者的玩家编号：\n"
+                      f"(你需要选择一名除自己外的玩家，次日白天只有该玩家参与的投票你才能投票，若该玩家不投票，则你也不能投票。）")
+            storyteller.butler_to_follow = player_input(self.true_role, alive_list, string)
+            self.info = f"你今晚选择的明天要跟随的投票者是 玩家{storyteller.butler_to_follow.player_index}"
+            if self.toxic:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票，但是由于他中毒了，因此技能未生效。")
+                print_to_grimoire(grimoire.backend_info[-1])
+            else:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 管家 选择明天跟随 玩家{storyteller.butler_to_follow.player_index} 投票。")
+                print_to_grimoire(grimoire.backend_info[-1])
 
 
 class Drunkard(Role):
@@ -685,12 +723,13 @@ class Drunkard(Role):
         self.is_outlander = True
         self.is_good_guy = True
 
-    def passive_skill_first_night(self):
-        # 找出在场的村民角色(这里使用实际身份)
-        villagers_in_game = [i.true_role for i in self.players_list if i.is_villager]
-        villagers_rest = [i for i in Villagers if i not in villagers_in_game]  # 找出不在场的村民角色
-        fake_role = choice(villagers_rest)
-        self.role_for_self = fake_role
+    def skill(self):
+        if grimoire.is_first_night:
+            # 找出在场的村民角色(这里使用实际身份)
+            villagers_in_game = [i.true_role for i in grimoire.players_list if i.is_villager]
+            villagers_rest = [i for i in Villagers if i not in villagers_in_game]  # 找出不在场的村民角色
+            fake_role = choice(villagers_rest)
+            self.role_for_self = fake_role
 
 
 class Hermit(Role):
@@ -707,13 +746,14 @@ class Hermit(Role):
         self.is_outlander = True
         self.is_good_guy = True
 
-    def skill_every_night(self, alive_list):
-        if self.toxic:
-            pass
-        else:
-            rand_num = random.randint(0, 1)
-            if rand_num:
-                self.role_for_register = choice(minion_list + demon_list).true_role
+    def skill(self):
+        if grimoire.is_night:
+            if self.toxic:
+                pass
+            else:
+                rand_num = random.randint(0, 1)
+                if rand_num:
+                    self.role_for_register = choice(minion_list + demon_list).true_role
 
 
 class Poisoner(Role):
@@ -733,25 +773,30 @@ class Poisoner(Role):
 
         self.player_to_poison = None
 
-    def passive_skill_before_game(self):
-        if len(self.players_list) >= 7:
-            # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
-            backend.info.append(f"玩家{self.player_index} 投毒者 知道了本局坏人阵营玩家：{bad_players_in_game}")
-            self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
-
-    def skill_every_night(self, alive_list):
-        for i in self.players_list:
-            if i.toxic:
-                i.toxic = False
-                backend.info.append(f"玩家{i.player_index} {i.true_role} 的毒已经被解开了。")
-        string = f"你是 玩家{self.player_index} 投毒者，请输入你今晚想投毒的玩家编号："
-        self.player_to_poison = player_input(self.true_role, alive_list, string)
-        backend.info.append(
-            f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
-        self.player_to_poison.toxic = True
-        backend.info.append(f"玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role} 已被投毒")
-        self.info = f"你今晚要投毒的是 玩家{self.player_to_poison.player_index}"
+    def skill(self):
+        if grimoire.before_game:
+            if grimoire.players_num >= 7:
+                # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
+                bad_players_in_game = [f"玩家{i.player_index}" for i in grimoire.players_list if i.is_bad_guy]
+                grimoire.backend_info.append(f"玩家{self.player_index} 投毒者 知道了本局坏人阵营玩家：{bad_players_in_game}")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
+        if grimoire.is_night:
+            alive_list = grimoire.alive_list
+            for i in grimoire.players_list:
+                if i.toxic:
+                    i.toxic = False
+                    grimoire.backend_info.append(f"玩家{i.player_index} {i.true_role} 的毒已经被解开了。")
+                    print_to_grimoire(grimoire.backend_info[-1])
+            string = f"你是 玩家{self.player_index} 投毒者，请输入你今晚想投毒的玩家编号："
+            self.player_to_poison = player_input(self.true_role, alive_list, string)
+            grimoire.backend_info.append(
+                f"玩家{self.player_index} 投毒者 选择投毒 玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role}")
+            print_to_grimoire(grimoire.backend_info[-1])
+            self.player_to_poison.toxic = True
+            grimoire.backend_info.append(f"玩家{self.player_to_poison.player_index} {self.player_to_poison.true_role} 已被投毒")
+            print_to_grimoire(grimoire.backend_info[-1])
+            self.info = f"你今晚要投毒的是 玩家{self.player_to_poison.player_index}"
 
 
 class Spy(Role):
@@ -769,54 +814,55 @@ class Spy(Role):
         self.is_minion = True
         self.is_bad_guy = True
 
-    def passive_skill_before_game(self):
-        if len(self.players_list) >= 7:
-            # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
-            backend.info.append(f"玩家{self.player_index} 间谍 知道了本局坏人阵营玩家：{bad_players_in_game}")
-            self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
-
-    def passive_skill_every_night(self, alive_list):
-        # 被动技能 间谍可能会被登记为正义阵营的特定身份（村民或外乡人），即使死亡。
-        if self.toxic:
-            pass
-        else:
-            rand_num = random.randint(0, 1)
-            if rand_num:
-                self.role_for_register = choice(good_guys_list).true_role
-
     def skill(self):
-        player_list = self.players_list
-        # 查看魔法书
-        info = ""
-        if self.toxic:
-            rand_int = random.randint(0, len(player_list))
-            for i in range(len(player_list)):
-                rand_player = choice(player_list)
-                player_list_new = [i for i in player_list if i != rand_player]
-                # 随机找一个人中毒
-                if i == rand_int:
-                    rand_player.toxic = True
-                else:
-                    rand_player.toxic = False
-                # 如果是酒鬼，随机一个他认为自己的身份
-                if rand_player == "酒鬼":
-                    villagers_in_game = [i.true_role for i in player_list_new if i.true_role in Villagers]
-                    villagers_rest = [i for i in Villagers if i not in villagers_in_game]  # 找出不在场的村民角色
-                    fake_role = choice(villagers_rest)
-                    info += f"玩家{i} 的实际身份是 {rand_player.true_role}, 他认为自己的身份是 {fake_role}, 他目前{'健康' if not rand_player.toxic else '中毒'}, 醉酒。"
-                else:
-                    info += f"玩家{i} 的实际身份是 {rand_player.true_role}, 他目前{'健康' if not rand_player.toxic else '中毒'}。"
-            backend.info.append(
-                f"玩家{self.player_index} 间谍 查看了魔法书，知道了每位玩家的实际身份与状态。但是他中毒了，因此得到的是错误信息。他得到的错误信息如下：{info}")
-        else:
-            for player in player_list:
-                if player.true_role == "酒鬼":
-                    info += f"玩家{player.player_index} 的实际身份是 {player.true_role}, 他认为自己的身份是 {player.role_for_self}, 他目前{'健康' if not player.toxic else '中毒'}, 醉酒。"
-                else:
-                    info += f"玩家{player.player_index} 的实际身份是 {player.true_role}, 他目前{'健康' if not player.toxic else '中毒'}。"
-            backend.info.append(f"玩家{self.player_index} 间谍 查看了魔法书，知道了每位玩家的实际身份与状态")
-        self.info = info
+        if grimoire.before_game:
+            if grimoire.players_num >= 7:
+                # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
+                bad_players_in_game = [f"玩家{i.player_index}" for i in grimoire.players_list if i.is_bad_guy]
+                grimoire.backend_info.append(f"玩家{self.player_index} 间谍 知道了本局坏人阵营玩家：{bad_players_in_game}")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
+        if grimoire.is_night:
+            # 被动技能 间谍可能会被登记为正义阵营的特定身份（村民或外乡人），即使死亡。
+            if self.toxic:
+                pass
+            else:
+                rand_num = random.randint(0, 1)
+                if rand_num:
+                    self.role_for_register = choice(good_guys_list).true_role
+            player_list = grimoire.players_list
+            # 查看魔法书
+            info = ""
+            if self.toxic:
+                rand_int = random.randint(0, len(player_list))
+                for i in range(len(player_list)):
+                    rand_player = choice(player_list)
+                    player_list_new = [i for i in player_list if i != rand_player]
+                    # 随机找一个人中毒
+                    if i == rand_int:
+                        rand_player.toxic = True
+                    else:
+                        rand_player.toxic = False
+                    # 如果是酒鬼，随机一个他认为自己的身份
+                    if rand_player == "酒鬼":
+                        villagers_in_game = [i.true_role for i in player_list_new if i.true_role in Villagers]
+                        villagers_rest = [i for i in Villagers if i not in villagers_in_game]  # 找出不在场的村民角色
+                        fake_role = choice(villagers_rest)
+                        info += f"玩家{i} 的实际身份是 {rand_player.true_role}, 他认为自己的身份是 {fake_role}, 他目前{'健康' if not rand_player.toxic else '中毒'}, 醉酒。"
+                    else:
+                        info += f"玩家{i} 的实际身份是 {rand_player.true_role}, 他目前{'健康' if not rand_player.toxic else '中毒'}。"
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 间谍 查看了魔法书，知道了每位玩家的实际身份与状态。但是他中毒了，因此得到的是错误信息。他得到的错误信息如下：{info}")
+                print_to_grimoire(grimoire.backend_info[-1])
+            else:
+                for player in player_list:
+                    if player.true_role == "酒鬼":
+                        info += f"玩家{player.player_index} 的实际身份是 {player.true_role}, 他认为自己的身份是 {player.role_for_self}, 他目前{'健康' if not player.toxic else '中毒'}, 醉酒。"
+                    else:
+                        info += f"玩家{player.player_index} 的实际身份是 {player.true_role}, 他目前{'健康' if not player.toxic else '中毒'}。"
+                grimoire.backend_info.append(f"玩家{self.player_index} 间谍 查看了魔法书，知道了每位玩家的实际身份与状态")
+                print_to_grimoire(grimoire.backend_info[-1])
+            self.info = info
 
 
 class ScarletWoman(Role):
@@ -832,13 +878,18 @@ class ScarletWoman(Role):
         self.is_minion = True
         self.is_bad_guy = True
 
-    def passive_skill_other_nights(self, alive_list):
-        imp = [i for i in self.players_list if i.true_role == "小恶魔"][0]
-        good_guy_alive_num = len([i for i in self.players_list if i.is_good_guy and i.is_alive])
-        if not imp.is_alive and good_guy_alive_num >= 5:
-            self.role_for_register = "小恶魔"
-            backend.info.append(f"玩家{imp.player_index} 小恶魔 已死亡，且场上存活超过5个好人，玩家{self.player_index} 猩红女郎 登记身份已成为 小恶魔。")
-            self.info = f"小恶魔 已经死亡，且场上存活超过5个好人，你是 猩红女郎 ，你的登记身份已成为 小恶魔。"
+        self.skill_has_been_used = False
+
+    def skill(self):
+        if grimoire.is_night and not grimoire.is_first_night and not self.skill_has_been_used:
+            self.skill_has_been_used = True
+            imp = [i for i in grimoire.players_list if i.true_role == "小恶魔"][0]
+            good_guy_alive_num = len([i for i in grimoire.players_list if i.is_good_guy and i.is_alive])
+            if not imp.is_alive and good_guy_alive_num >= 5:
+                self.role_for_register = "小恶魔"
+                grimoire.backend_info.append(f"玩家{imp.player_index} 小恶魔 已死亡，且场上存活超过5个好人，玩家{self.player_index} 猩红女郎 登记身份已成为 小恶魔。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"小恶魔 已经死亡，且场上存活超过5个好人，你是 猩红女郎 ，你的登记身份已成为 小恶魔。"
 
 
 class Baron(Role):
@@ -855,12 +906,14 @@ class Baron(Role):
         self.is_minion = True
         self.is_bad_guy = True
 
-    def passive_skill_before_game(self):
-        if len(self.players_list) >= 7:
-            # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
-            backend.info.append(f"玩家{self.player_index} 男爵 知道了本局坏人阵营玩家：{bad_players_in_game}")
-            self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
+    def skill(self):
+        if grimoire.before_game:
+            if grimoire.players_num >= 7:
+                # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
+                bad_players_in_game = [f"玩家{i.player_index}" for i in grimoire.players_list if i.is_bad_guy]
+                grimoire.backend_info.append(f"玩家{self.player_index} 男爵 知道了本局坏人阵营玩家：{bad_players_in_game}")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"本局坏人阵营玩家：{bad_players_in_game}"
 
     def passive_skill(self, players_list):
         villagers_in_game = [i for i in players_list if i in villager_list]  # 找出目前在场的村民角色
@@ -889,28 +942,33 @@ class Imp(Role):
         self.is_demon = True
         self.is_bad_guy = True
 
-    def passive_skill_before_game(self):
-        if len(self.players_list) >= 7:
-            # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
-            bad_players_in_game = [f"玩家{i.player_index}" for i in self.players_list if i.is_bad_guy]
-            good_not_in_game = [i for i in Good_guys if i not in [r.true_role for r in self.players_list]]
-            rand_3_good_not_in_game = sample(good_not_in_game, 3)
-            backend.info.append(
-                f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
-            self.info = f"本局坏人阵营玩家：{bad_players_in_game}, 本局三个不在场的好人身份：{rand_3_good_not_in_game}。"
+    def skill(self):
+        if grimoire.before_game:
+            if grimoire.players_num >= 7:
+                # 七人或七人以上的局，爪牙与恶魔互相认识但是不知道对方具体身份 ，且恶魔知道三个不在场的好人身份
+                bad_players_in_game = [f"玩家{i.player_index}" for i in grimoire.players_list if i.is_bad_guy]
+                good_not_in_game = [i for i in Good_guys if i not in [r.true_role for r in grimoire.players_list]]
+                rand_3_good_not_in_game = sample(good_not_in_game, 3)
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 小恶魔 知道了本局坏人阵营玩家：{bad_players_in_game} 和本局三个不在场的好人身份：{rand_3_good_not_in_game}")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"本局坏人阵营玩家：{bad_players_in_game}, 本局三个不在场的好人身份：{rand_3_good_not_in_game}。"
 
-    def skill_other_nights(self, alive_list):
-        string = f"你是 玩家{self.player_index} 小恶魔，请输入你今晚想杀死的玩家编号："
-        storyteller.imp_to_kill = player_input(self.true_role, alive_list, string)
-        if self.toxic:
-            backend.info.append(
-                f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}，但是由于他中毒了，因此技能未生效。")
-            self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
-            storyteller.imp_to_kill = None
-        else:
-            backend.info.append(
-                f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}。")
-            self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
+        if grimoire.is_night and not grimoire.is_first_night:
+            alive_list = grimoire.alive_list
+            string = f"你是 玩家{self.player_index} 小恶魔，请输入你今晚想杀死的玩家编号："
+            storyteller.imp_to_kill = player_input(self.true_role, alive_list, string)
+            if self.toxic:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}，但是由于他中毒了，因此技能未生效。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
+                storyteller.imp_to_kill = None
+            else:
+                grimoire.backend_info.append(
+                    f"玩家{self.player_index} 小恶魔 选择杀死 玩家{storyteller.imp_to_kill.player_index} {storyteller.imp_to_kill.true_role}。")
+                print_to_grimoire(grimoire.backend_info[-1])
+                self.info = f"你今晚要杀死的是 玩家{storyteller.imp_to_kill.player_index}"
 
 
 role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
@@ -918,7 +976,7 @@ role_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Sooth
              ScarletWoman(), Baron(), Imp()]
 # 村民角色
 # 洗衣妇 Washerwoman, 图书管理员 librarian, 调查员 investigator, 厨师 cook, 共情者 Empath, 占卜师 Soothsayer,
-# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 圣女 Virgin, 杀手 slayer, 军人 soldier, 市长 mayor
+# 送葬者 grave digger, 僧侣 monk, 养鸦人 raven keeper, 圣女 Virgin, 杀手 slayer, 士兵 soldier, 市长 mayor
 villager_list = [Washerwoman(), Librarian(), Investigator(), Cook(), Empath(), Soothsayer(), GraveDigger(), Monk(),
                  RavenKeeper(), Virgin(), Slayer(), Soldier()]
 # 外来人角色
